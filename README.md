@@ -15,13 +15,3 @@ The goal is to practice **CI/CD concepts** using **GitHub Actions**.
 - Run automatically via **GitHub Actions (scheduled job)**.
 
 ---
-
-## Project Structure
-
-```
-sp500-alert/
-│── sp500_check.py    # Main Python script
-│── .github/workflows # GitHub Actions workflows (CI/CD)
-│── README.md         # Project documentation
-````
-
