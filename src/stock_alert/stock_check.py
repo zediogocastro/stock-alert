@@ -5,18 +5,19 @@ TICKER = "^GSPC"
 PERIOD = "2y"
 WINDOW_SIZE = 21
 
-def print_report():
-    # Extract SP500 data
-    tk = yf.Ticker(TICKER)
-    historic_data = tk.history(period=PERIOD, interval="1d", rounding=True)
+def prepare_report(ticker: str = TICKER, period: str = PERIOD, window_size: int = WINDOW_SIZE) -> pd.DataFrame:
+    """Fetch ticker data and compute SMA & differences."""
+    tk = yf.Ticker(ticker)
+    historic_data = tk.history(period=period, interval="1d", rounding=True)
 
-    # Transform data
     df = historic_data[["Close"]].copy()
-    df[f"sma_{WINDOW_SIZE}"] = df["Close"].rolling(window=WINDOW_SIZE).mean()
+    df[f"sma_{window_size}"] = df["Close"].rolling(window=window_size).mean()
 
-    df["Diff"] = df["Close"] - df[f"sma_{WINDOW_SIZE}"].round(1)
-    df["Diff_pct"] = ((df["Diff"] / df[f"sma_{WINDOW_SIZE}"]) * 100).round(1)
+    df["Diff"] = df["Close"] - df[f"sma_{window_size}"].round(1)
+    df["Diff_pct"] = ((df["Diff"] / df[f"sma_{window_size}"]) * 100).round(1)
 
-    # Report Data
-    # Print last 4 row for quick insight
+    return df
+
+def print_report():
+    df = prepare_report()
     print(df.tail(4))
