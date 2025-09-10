@@ -1,13 +1,14 @@
 import pandas as pd
-import pytest
 
 import stock_alert.stock_check as sc
 
+
 class DummyTicker:
     def history(self, period, interval, rounding):
-        data = {"Close": list(range(100, 125))}  
+        data = {"Close": list(range(100, 125))}
         return pd.DataFrame(data)
-    
+
+
 def test_prepare_report_adds_expected_columns(monkeypatch):
     # Replace yfinance.Ticker with DummyTicker
     monkeypatch.setattr(sc.yf, "Ticker", lambda ticker: DummyTicker())
@@ -19,6 +20,7 @@ def test_prepare_report_adds_expected_columns(monkeypatch):
     assert "sma_5" in df.columns
     assert "Diff" in df.columns
     assert "Diff_pct" in df.columns
+
 
 def test_prepare_report_calculations(monkeypatch):
     monkeypatch.setattr(sc.yf, "Ticker", lambda ticker: DummyTicker())
