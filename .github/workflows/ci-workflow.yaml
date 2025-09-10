@@ -8,8 +8,31 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
+  schedule:
+    - cron: "*/2 * * * *"  # every 2 minutes for testing
 
 jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run Ruff linter
+        run: poetry run ruff check .
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -25,4 +48,31 @@ jobs:
         run: poetry install
       - name: Run tests
         run: poetry run pytest
+
+  scheduled-report:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run stock check and generate report
+        run: poetry run python scripts/run_stock_check.py 
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-reports
+          path: reports/
 
