@@ -10,6 +10,7 @@ on:
       - main
   schedule:
     - cron: "*/2 * * * *"  # every 2 minutes for testing
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -50,8 +51,10 @@ jobs:
         run: poetry run pytest
 
   scheduled-report:
+    name: Generate Scheduled Stock Report
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
+
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,12 +70,16 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Run stock check and generate report
-        run: poetry run python scripts/run_stock_check.py 
+      - name: Run stock check script
+        run: poetry run python scripts/run_stock_check.py
+
+      - name: List generated reports (debug)
+        run: ls -la reports || echo "reports dir missing"
 
       - name: Upload report artifact
         uses: actions/upload-artifact@v4
         with:
           name: stock-reports
           path: reports/
+          retention-days: 7
 
