@@ -1,0 +1,40 @@
+name: Scheduled Report
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5"   # Weekdays at 11:00 UTC
+  workflow_dispatch:
+
+env:
+  ENABLE_REPORT_JOB: ${{ vars.ENABLE_REPORT_JOB }}
+
+jobs:
+  generate-report:
+    name: Generate Scheduled Stock Report
+    runs-on: ubuntu-latest
+
+    if: |
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      vars.ENABLE_REPORT_JOB == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install dependencies
+        run: poetry install
+      - name: Run stock check script
+        run: poetry run python scripts/run_stock_check.py
+      - name: List generated reports (debug)
+        run: ls -la reports || echo "reports dir missing"
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-reports
+          path: reports/
+          retention-days: 7

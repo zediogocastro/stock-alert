@@ -8,9 +8,6 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
-  schedule:
-    - cron: "0 11 * * 1-5"   # Every weekday (Mon–Fri) at 11:00 UTC
-  workflow_dispatch:
 
 jobs:
   lint:
@@ -19,7 +16,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
