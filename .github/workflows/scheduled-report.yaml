@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
 
     if: |
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
-      vars.ENABLE_REPORT_JOB == 'true'
-
+      (github.event_name == 'schedule' && vars.ENABLE_REPORT_JOB == 'true') ||
+      github.event_name == 'workflow_dispatch'
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,3 +38,8 @@ jobs:
           name: stock-reports
           path: reports/
           retention-days: 7
+      - name: Show stock report in logs
+        run: |
+          echo "::group::📊 Stock Report"
+          cat reports/stock_report.md
+          echo "::endgroup::"
