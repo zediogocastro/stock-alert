@@ -36,7 +36,7 @@ jobs:
           key: poetry-${{ runner.os }}-${{ env.POETRY_VERSION }}
 
       - name: Install Poetry
-        if: "! command -v poetry &> /dev/null"
+        if: ${{ !hashFiles('~/.local/bin/poetry') }}
         run: |
           curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION
           echo "$HOME/.local/bin" >> $GITHUB_PATH
