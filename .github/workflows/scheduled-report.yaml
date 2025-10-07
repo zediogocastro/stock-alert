@@ -41,7 +41,7 @@ jobs:
             venv-${{ runner.os }}-
 
       - name: Install dependencies
-        run: poetry install --no-interaction --no-root
+        run: poetry install --no-interaction
 
       - name: Run stock check script
         run: poetry run python scripts/run_stock_check.py
