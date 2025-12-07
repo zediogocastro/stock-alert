@@ -1,76 +1,88 @@
+from abc import ABC, abstractmethod
+from typing import Protocol
 import yfinance as yf
 import pandas as pd
-import os
 
-TICKER = "^GSPC"
-PERIOD = "2y"
-WINDOW_SIZE = 21
-REPORTS_DIR = "reports"
-CSV_FILE = os.path.join(REPORTS_DIR, "stock_report.csv")
-MD_FILE = os.path.join(REPORTS_DIR, "stock_report.md")
+class BaseFetcher(ABC):
+    """Base class for stock data fetchers"""
+    def __init__(self, ticker: str, period: str) -> None:
+        self.ticker = ticker.upper()
+        self.period = period
 
+    @abstractmethod
+    def fetch(self) -> pd.DataFrame:
+        pass
 
-def prepare_report(
-    ticker: str = TICKER, period: str = PERIOD, window_size: int = WINDOW_SIZE
-) -> pd.DataFrame:
-    """Fetch ticker data and compute SMA & differences."""
-    tk = yf.Ticker(ticker)
-    historic_data = tk.history(period=period, interval="1d", rounding=True)
+class YFinanceFetcher(BaseFetcher):
+    """Fetcher that uses yfinance to retrieve stock data"""
 
-    df = historic_data[["Close"]].copy()
-    df[f"sma_{window_size}"] = df["Close"].rolling(window=window_size).mean()
+    def fetch(self) -> pd.DataFrame:
+        tk = yf.Ticker(self.ticker)
+        return tk.history(period=self.period, interval="1d", rounding=True)
+    
 
-    df["Diff"] = df["Close"] - df[f"sma_{window_size}"].round(1)
-    df["Diff_pct"] = ((df["Diff"] / df[f"sma_{window_size}"]) * 100).round(1)
+class Transformer(Protocol):
+    """Protocol for data transformers"""
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        ...
+class CreateMovingAverage:
+    """Transformer that creates a Moving Average"""
+    def __init__(self, window_size: int) -> None:
+        self.window_size = window_size
 
-    return df
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        df = data[["Close"]].copy()
+        df[f"sma_{self.window_size}"] = df["Close"].rolling(window=self.window_size).mean()
 
+        # This next part maybe shouldnt be here
+        df["Diff"] = df["Close"] - df[f"sma_{self.window_size}"].round(1)
+        df["Diff_pct"] = ((df["Diff"] / df[f"sma_{self.window_size}"]) * 100).round(1)
+        return df
+    
+class BaseExporter(ABC):
+    """Base class for data exporters"""
+    
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+    
+    def export(self, data: pd.DataFrame) -> None:
+        """Template method: handles common logic"""
+        self._ensure_directory_exists()
+        self._write(data)
 
-def print_report():
-    df = prepare_report()
-    print(df.tail(4))
+    @abstractmethod
+    def _write(self, data: pd.DataFrame) -> None:
+        """Subclasses implement the actual writing logic"""
+        pass
+    
+    def _ensure_directory_exists(self) -> None:
+        """Shared utility: ensure output directory exists"""
+        import os
+        directory = os.path.dirname(self.filename)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
 
+class CSVExporter(BaseExporter):
+    """Exporter that writes data to CSV files"""
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
 
-def save_csv_report(df: pd.DataFrame, filepath: str = CSV_FILE) -> str:
-    """Save a machine-readable CSV report, overwriting previous one."""
-    os.makedirs(REPORTS_DIR, exist_ok=True)
-    df_to_save = df.copy()
-    for col in df_to_save.select_dtypes("float"):
-        df_to_save[col] = df_to_save[col].round(2)
+    def _write(self, data: pd.DataFrame) -> None:
+        data.to_csv(self.filename, index=True)
+        
 
-    df_to_save.to_csv(filepath, index=True)
-    print(f"CSV report saved to {filepath}")
-    return filepath
+class DataPipeline:
+    """Class that is responsible for the ETL pipeline"""
+    def __init__(self, 
+                 fetcher: BaseFetcher, 
+                 transformer: Transformer, 
+                 exporter: BaseExporter):
+        self.fetcher = fetcher
+        self.transformer = transformer
+        self.exporter = exporter
 
+    def run(self) -> None:
+        data = self.fetcher.fetch()
+        transformed = self.transformer.transform(data)
+        self.exporter.export(transformed)
 
-def save_markdown_report(
-    df: pd.DataFrame, filepath: str = MD_FILE, last_n: int = 30
-) -> str:
-    """Save a human-readable Markdown report, overwriting previous one."""
-    os.makedirs(REPORTS_DIR, exist_ok=True)
-    df_to_save = df.tail(last_n).copy()
-
-    # Format numeric columns nicely
-    df_to_save["Close"] = df_to_save["Close"].map("{:.2f}".format)
-    sma_col = f"sma_{WINDOW_SIZE}"
-    df_to_save[sma_col] = df_to_save[sma_col].map("{:.2f}".format)
-    df_to_save["Diff"] = df_to_save["Diff"].map("{:+.2f}".format)
-    df_to_save["Diff_pct"] = df_to_save["Diff_pct"].map("{:+.2f}%".format)
-
-    df_to_save_reset = df_to_save.reset_index()
-    markdown_table = df_to_save_reset.to_markdown(index=False)
-
-    with open(filepath, "w") as f:
-        f.write("# Stock Report\n\n")
-        f.write(markdown_table)
-
-    print(f"Markdown report saved to {filepath}")
-    return filepath
-
-
-def generate_reports():
-    """Generate both CSV and Markdown reports, overwriting previous ones."""
-    df = prepare_report()
-    save_csv_report(df)
-    save_markdown_report(df)
-    return CSV_FILE, MD_FILE
