@@ -1,4 +1,4 @@
-from stock_alert.stock_check import DataPipeline, YFinanceFetcher, CreateMovingAverage, CSVExporter
+from stock_alert import YFinanceFetcher, CreateMovingAverage, CSVExporter, DataPipeline
 
 # Fetcher
 TICKER = "^GSPC"
