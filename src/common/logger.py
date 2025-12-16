@@ -1,15 +1,16 @@
 import logging
 import os
-
 from colorlog import ColoredFormatter
 
 def __get_logger() -> logging.Logger:
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    logger.setLevel(getattr(logging, log_level, logging.INFO))
 
     # Creates a stream handler
     handler = logging.StreamHandler()
-    fomatter = ColoredFormatter(
+    formatter = ColoredFormatter(
         fmt=(
         "%(log_color)s%(asctime)s.%(msecs)03d [%(levelname)-8s]%(reset)s "
         "%(cyan)s%(name)s%(reset)s.%(funcName)s:%(lineno)d - "
@@ -34,7 +35,8 @@ def __get_logger() -> logging.Logger:
         },
         reset=True
     )
-    handler.setFormatter(fomatter)
+
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     return logger

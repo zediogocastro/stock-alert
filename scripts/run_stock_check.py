@@ -1,4 +1,5 @@
 from stock_alert import YFinanceFetcher, CreateMovingAverage, CSVExporter, DataPipeline
+from common.logger import logger
 
 # Fetcher
 TICKER = "^GSPC"
@@ -23,4 +24,4 @@ if __name__ == "__main__":
     )
     pipeline = DataPipeline(fetcher, transformer, exporter)
     pipeline.run()
-    print("✅ Pipeline Completed!")
+    logger.info("✅ Pipeline Completed!")

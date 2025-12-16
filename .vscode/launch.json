@@ -8,7 +8,10 @@
             "program": "${workspaceFolder}/scripts/run_stock_check.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "LOG_LEVEL": "DEBUG"
+            }
         }
     ]
 }
