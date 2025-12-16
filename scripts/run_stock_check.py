@@ -1,4 +1,4 @@
-from stock_alert import YFinanceFetcher, CreateMovingAverage, CSVExporter, DataPipeline
+from stock_alert import YFinanceFetcher, CreateMovingAverage, CSVExporter, DataPipeline, PlotExporter
 from common.logger import logger
 
 # Fetcher
@@ -9,7 +9,8 @@ PERIOD = "2y"
 WINDOW_SIZE = 21
 
 # Exporter
-FILE_NAME = "reports/stock_report.csv"
+#FILE_NAME = "reports/stock_report.csv"
+PLOT_NAME = "reports/stock_plot.png"
 
 if __name__ == "__main__":
     fetcher = YFinanceFetcher(
@@ -19,8 +20,9 @@ if __name__ == "__main__":
     transformer = CreateMovingAverage(
         window_size=WINDOW_SIZE
     )
-    exporter = CSVExporter(
-        filename=FILE_NAME
+    exporter = PlotExporter(
+        filename=PLOT_NAME,
+        columns=["Close" , "sma_21"]
     )
     pipeline = DataPipeline(fetcher, transformer, exporter)
     pipeline.run()
