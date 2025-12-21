@@ -12,5 +12,6 @@ __all__ = [
     "CreateMovingAverage",
     "BaseExporter",
     "CSVExporter",
+    "PlotExporter",
     "DataPipeline",
 ]
