@@ -1,5 +1,7 @@
-from stock_alert import YFinanceFetcher, CreateMovingAverage, CSVExporter, DataPipeline, PlotExporter
-from common.logger import logger
+from stock_alert import YFinanceFetcher, CreateMovingAverage, DataPipeline, PlotExporter
+from common.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Fetcher
 TICKER = "^GSPC"

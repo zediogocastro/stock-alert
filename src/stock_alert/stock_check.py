@@ -1,7 +1,9 @@
-from common.logger import logger
+from common.logger import get_logger
 from stock_alert.fetcher import BaseFetcher
 from stock_alert.transformer import Transformer
 from stock_alert.exporter import BaseExporter
+
+logger = get_logger(__name__)
 
 
 class DataPipeline:
@@ -19,17 +21,17 @@ class DataPipeline:
             logger.info("Starting pipeline execution")
 
             # Fetch Data
-            logger.debug("Fetching data...")
+            logger.info("Fetching data...")
             data = self.fetcher.fetch()
             if data.empty:
                 raise ValueError("No data fetched")
             
             # Transform 
-            logger.debug("Transforming data...")
+            logger.info("Transforming data...")
             transformed = self.transformer.transform(data)
 
             # Export 
-            logger.debug("Exporting data...")
+            logger.info("Exporting data...")
             self.exporter.export(transformed)
         except Exception as e:
             raise RuntimeError(f"Pipeline failed: {e}") from e
