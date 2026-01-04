@@ -1,7 +1,5 @@
 import pytest
 import pandas as pd
-import os
-from pathlib import Path
 from stock_alert.fetcher import BaseFetcher, YFinanceFetcher
 from stock_alert.transformer import CreateMovingAverage
 from stock_alert.exporter import BaseExporter, CSVExporter
