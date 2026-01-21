@@ -3,7 +3,7 @@ import pandas as pd
 from stock_alert.fetcher import BaseFetcher, YFinanceFetcher
 from stock_alert.transformer import CreateMovingAverage
 from stock_alert.exporter import BaseExporter, CSVExporter
-from stock_alert.stock_check import DataPipeline
+from stock_alert.pipeline import DataPipeline
 
 
 # ============ FETCHER TESTS ============

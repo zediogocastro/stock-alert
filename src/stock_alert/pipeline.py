@@ -1,10 +1,7 @@
-from common.logger import get_logger
+from common.logger import logger
 from stock_alert.fetcher import BaseFetcher
 from stock_alert.transformer import Transformer
 from stock_alert.exporter import BaseExporter
-
-logger = get_logger(__name__)
-
 
 class DataPipeline:
     """Class that is responsible for the ETL pipeline"""
@@ -22,13 +19,14 @@ class DataPipeline:
 
             # Fetch Data
             logger.info("Fetching data...")
-            data = self.fetcher.fetch()
-            if data.empty:
+            asset_data = self.fetcher.fetch()
+            if asset_data.data.empty:
                 raise ValueError("No data fetched")
+            logger.debug(f"Fetched {len(asset_data.data)} rows for {asset_data.ticker} ({asset_data.currency})")
             
             # Transform 
             logger.info("Transforming data...")
-            transformed = self.transformer.transform(data)
+            transformed = self.transformer.transform(asset_data)
 
             # Export 
             logger.info("Exporting data...")
