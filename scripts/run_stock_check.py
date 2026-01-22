@@ -4,7 +4,8 @@ from common.logger import logger
 
 #---------------------## Config ##---------------------#
 # Fetcher
-TICKER = "AAPL" #"IE00BFMXXD54" # "^GSPC"
+#TICKER = "AAPL" #"IE00BFMXXD54" # "^GSPC"
+TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT"]
 PERIOD = "2y"
 
 # Transform
@@ -22,8 +23,9 @@ DISPLAY_CURRENCY = None # "EUR"
 if __name__ == "__main__":
     # Initialize fetcher
     fetcher = YFinanceFetcher(
-        ticker=TICKER,
+        identifiers=TICKERS,
         period=PERIOD,
+        cache_dir="data/ingested"
     )
 
     # Initialize Transformer

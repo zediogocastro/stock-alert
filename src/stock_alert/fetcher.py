@@ -1,45 +1,69 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 import pandas as pd
 import yfinance as yf
 from common.logger import logger
 from stock_alert.data_model import AssetData
 
 class BaseFetcher(ABC):
-    """Base class for stock data fetchers"""
-    def __init__(self, ticker: str, period: str) -> None:
-        self.ticker = ticker.upper()
-        self.period = period
+    """Generic base class defining the fetching contract"""
+    def __init__(self, cache_dir: str | None) -> None:
+        self.cache_dir = cache_dir
 
     @abstractmethod
-    def fetch(self) -> AssetData:
+    def fetch(self) -> pd.DataFrame:
         pass
 
+    def _write_data(self, data:pd.DataFrame, source_name: str) -> None:
+        """Save fetched data to a specific path"""
+        if not self.cache_dir:
+            return  
+        
+        save_path = Path(self.cache_dir) / source_name / "data.parquet"
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        data.to_parquet(save_path)
+        logger.info(f"Write data to {save_path}")
+
 class YFinanceFetcher(BaseFetcher):
-    """Fetcher that uses yfinance to retrieve stock data"""
+    """Fetcher to retrieve stock data from Yahoo Finance"""
 
-    def fetch(self) -> AssetData:
-        logger.debug(f"Fetching data for {self.ticker} (period={self.period})")
-        tk = yf.Ticker(self.ticker)
-        df = tk.history(period=self.period, interval="1d", rounding=True)
+    def __init__(self, identifiers: list[str], period: str = "2y", cache_dir: str | None = None) -> None:
+        super().__init__(cache_dir)
+        self.identifiers=identifiers
+        self.period = period
 
-        # Get metadata from yfinance
-        info = tk.info
+    def fetch(self) -> pd.DataFrame:
+        """Fetch data for all identifiers and return combined DataFrame"""    
+        logger.info(f"Fetching data for {self.identifiers} (period={self.period})")
 
-        # Validate required fields
-        currency = info.get("currency")
-        if not currency:
-            raise ValueError(f"Currency information not available for {self.ticker}")
+        # Start to load consecutevely each stock data
+        all_data = []
+
+        for identifier in self.identifiers:
+            try:
+                logger.debug(f"Fetching {identifier}...")
+                tk = yf.Ticker(identifier)
+                df = tk.history(period=self.period, interval="1d", rounding=True)
+
+                # Add identifier column to distinguish assets
+                df["identifier"] = identifier
+                all_data.append(df)
+                logger.debug(f"Fetched {identifier}: {len(df)} rows")
+
+            except Exception as e:
+                logger.error(f"Failed to fetch {identifier}: {e}")
+            
+        if not all_data:
+            raise ValueError("No data fethed for any identifier")
         
-        asset_type = info.get("quoteType")
-        if not asset_type:
-            raise ValueError(f"Asset type information not available for {self.ticker}")
-        
-        return AssetData(
-            data=df,
-            ticker=self.ticker,
-            name=info.get("longName", self.ticker),
-            currency=currency,
-            asset_type=info.get("quoteType", None),
-            source="yfinance"
-        )
+        # Combine all data into one DataFrame
+        combined_df = pd.concat(all_data, ignore_index=False)
+        combined_df = combined_df.reset_index()
+
+        logger.info(f"Combined data: {len(combined_df)} rows from {len(all_data)} assets")
+
+        # Write data
+        self._write_data(data=combined_df, source_name="stocks")
+
+        return combined_df
     
