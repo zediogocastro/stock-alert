@@ -3,7 +3,6 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 from common.logger import logger
-from stock_alert.data_model import AssetData
 
 class BaseFetcher(ABC):
     """Generic base class defining the fetching contract"""
@@ -45,7 +44,7 @@ class YFinanceFetcher(BaseFetcher):
                 tk = yf.Ticker(identifier)
                 df = tk.history(period=self.period, interval="1d", rounding=True)
 
-                # Add identifier column to distinguish assets
+                # Add identifier column to distinguish stocks
                 df["identifier"] = identifier
                 all_data.append(df)
                 logger.debug(f"Fetched {identifier}: {len(df)} rows")
