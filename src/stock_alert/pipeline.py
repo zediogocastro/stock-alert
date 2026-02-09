@@ -1,16 +1,18 @@
+import polars as pl
 from common.logger import logger
 from stock_alert.fetcher import BaseFetcher
-from stock_alert.transformer import Transformer
+#from stock_alert.transformer import Transformer
+from stock_alert.features import FeatureEngine
 from stock_alert.exporter import BaseExporter
 
 class DataPipeline:
     """Class that is responsible for the ETL pipeline"""
     def __init__(self, 
                  fetcher: BaseFetcher, 
-                 transformer: Transformer, 
+                 feature_engine: FeatureEngine, 
                  exporter: BaseExporter):
         self.fetcher = fetcher
-        self.transformer = transformer
+        self.feature_engine = feature_engine
         self.exporter = exporter
 
     def run(self) -> None:
@@ -23,9 +25,9 @@ class DataPipeline:
             if data.empty:
                 raise ValueError("No data fetched")
             
-            # Transform 
-            logger.info("Transforming data...")
-            transformed = self.transformer.transform(data)
+            # Transform (Feature Engineering)
+            logger.info("Generating features...")
+            transformed = self.feature_engine.transform(pl.from_pandas(data))
 
             # Export 
             logger.info("Exporting data...")

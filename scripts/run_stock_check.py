@@ -1,5 +1,6 @@
-from stock_alert import YFinanceFetcher, CreateMovingAverage, DataPipeline, PlotExporter
+from stock_alert import YFinanceFetcher, DataPipeline, PlotExporter
 from stock_alert.exporter import CSVExporter, CompositeExporter
+from stock_alert.features import FeatureEngine, MovingAverage
 from common.logger import logger
 
 #---------------------## Config ##---------------------#
@@ -8,8 +9,10 @@ from common.logger import logger
 TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT"]
 PERIOD = "2y"
 
-# Transform
-WINDOW_SIZE = 21
+# Feature Engineering
+GROUP_BY = "identifier"
+SORT_BY = "Date"
+COLUMN = "Close"
 
 # Exporters
 FILE_NAME = "reports/stock_report.csv"
@@ -28,9 +31,12 @@ if __name__ == "__main__":
         cache_dir="data/ingested"
     )
 
-    # Initialize Transformer
-    transformer = CreateMovingAverage(
-        window_size=WINDOW_SIZE
+    # Initialize Feature Engine with multiple features
+    feature_engine = (
+        FeatureEngine(group_by=GROUP_BY)
+        .add(MovingAverage(column=COLUMN, window_days=21, sort_by_column=SORT_BY))
+        .add(MovingAverage(column=COLUMN, window_days=50, sort_by_column=SORT_BY))
+        .add(MovingAverage(column=COLUMN, window_days=200, sort_by_column=SORT_BY))
     )
 
     # Initialize multiple exporters
@@ -48,6 +54,6 @@ if __name__ == "__main__":
     ])
 
     # Initialize and run pipeline
-    pipeline = DataPipeline(fetcher, transformer, exporter)
+    pipeline = DataPipeline(fetcher, feature_engine, exporter)
     pipeline.run()
     logger.info("✅ Pipeline Completed!")

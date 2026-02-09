@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List
 import pandas as pd
-
-from stock_alert.data_model import AssetData
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 class BaseExporter(ABC):
@@ -11,13 +11,13 @@ class BaseExporter(ABC):
     def __init__(self, filename: str) -> None:
         self.filename = filename
     
-    def export(self, asset_data: AssetData) -> None:
+    def export(self, df: pd.DataFrame) -> None:
         """Template method: handles common logic"""
         self._ensure_directory_exists()
-        self._write(asset_data)
+        self._write(df)
 
     @abstractmethod
-    def _write(self, asset_data: AssetData) -> None:
+    def _write(self, df: pd.DataFrame) -> None:
         """Subclasses implement the actual writing logic"""
         pass
     
@@ -47,10 +47,10 @@ class CompositeExporter(BaseExporter):
     def __init__(self, exporters: List[BaseExporter]) -> None:
         self.exporters = exporters
 
-    def export(self, asset_data: AssetData) -> None:
+    def export(self, df: pd.DataFrame) -> None:
         """Execute all exporters in sequence"""
         for exporter in self.exporters:
-            exporter.export(asset_data)
+            exporter.export(df)
 
     # TODO: Moved into a more concrete class 
     def _ensure_directory_exists(self) -> None:
@@ -58,14 +58,14 @@ class CompositeExporter(BaseExporter):
         pass
     
     # TODO: Moved into a more concrete class 
-    def _write(self, asset_data:AssetData) -> None:
+    def _write(self, df:pd.DataFrame) -> None:
         """Not needed - export() handles the logic"""
         pass
 
 class CSVExporter(BaseExporter):
     """Exporter that writes data to CSV files"""
-    def _write(self, asset_data: AssetData) -> None:
-        asset_data.data.to_csv(self.filename, index=True)
+    def _write(self, df: pd.DataFrame) -> None:
+        df.data.to_csv(self.filename, index=True)
 
 class PlotExporter(BaseExporter):
     """Exporter that creates a seaborn plot"""
@@ -74,28 +74,19 @@ class PlotExporter(BaseExporter):
         self.columns = columns
         self.display_currency = display_currency
 
-    def _write(self, asset_data: AssetData) -> None:
-        import seaborn as sns
-        import matplotlib.pyplot as plt
-
-        # Conver currency if requested
-        if self.display_currency:
-            asset_data = asset_data.to_currency(self.display_currency)
-
-        data = asset_data.data
-
+    def _write(self, df: pd.DataFrame) -> None:
         plt.figure(figsize=(12, 6))
         for column in self.columns:
             sns.lineplot(
-                data=data,
+                data=df,
                 x="Date",
                 y=column,
                 label=column
             )
-        title = f"{asset_data.name or asset_data.ticker} Price Analysis"
+        title = f"{df.name or df.ticker} Price Analysis"
         plt.title(title)
         plt.xlabel("Date")
-        plt.ylabel(f"Price ({asset_data.currency})")
+        plt.ylabel(f"Price ({df.currency})")
         plt.legend()
         plt.grid(True, alpha=0.3, linestyle='--')
         plt.tight_layout()

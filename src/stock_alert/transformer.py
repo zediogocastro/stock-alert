@@ -1,22 +1,40 @@
 from typing import Protocol
 import pandas as pd
 
-from stock_alert.data_model import AssetData
-
 class Transformer(Protocol):
     """Protocol for data transformers"""
-    def transform(self, asset_data: AssetData) -> AssetData:
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
         ...
 class CreateMovingAverage:
-    """Transformer that creates a Moving Average"""
-    def __init__(self, window_size: int) -> None:
+    """Transformer that creates a Moving Average of a certain column
+    
+    Args:
+        window_size: Size of the rolling window
+        column: Column name to calculate SMA on
+        group_by: Optional column to group by 
+    """
+    def __init__(self, window_size: int, column: str, group_by: str | None = None) -> None:
         self.window_size = window_size
+        self.column = column
+        self.group_by = group_by
 
-    def transform(self, asset_data: AssetData) -> AssetData:
-        df = asset_data.data[["Close"]].copy()
-        df[f"sma_{self.window_size}"] = df["Close"].rolling(window=self.window_size).mean()
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        df = data.copy()
+
+        ma_col_name = f"moving_average_{self.window_size}d"
+
+        # Calculate SMA wit optional grouping
+        if self.group_by and self.group_by in df.columns:
+            df[ma_col_name] = (df
+                                .groupby(self.group_by)[self.column]
+                                .rolling(window=self.window_size)
+                                .mean()
+                            )
+        else:
+            df[ma_col_name] = df[self.column].rolling(window=self.window_size).mean()
 
         # This next part maybe shouldnt be here
-        df["Diff"] = df["Close"] - df[f"sma_{self.window_size}"].round(1)
+        df["Diff"] = df[self.column] - df[f"sma_{self.window_size}"].round(1)
         df["Diff_pct"] = ((df["Diff"] / df[f"sma_{self.window_size}"]) * 100).round(1)
-        return asset_data.with_data(df)
+
+        return df
