@@ -10,7 +10,7 @@ class DataPipeline:
     def __init__(self, 
                  fetcher: BaseFetcher, 
                  feature_engine: FeatureEngine, 
-                 exporter: BaseExporter):
+                 exporter: BaseExporter | None = None):
         self.fetcher = fetcher
         self.feature_engine = feature_engine
         self.exporter = exporter
@@ -29,9 +29,13 @@ class DataPipeline:
             logger.info("Generating features...")
             transformed = self.feature_engine.transform(pl.from_pandas(data))
 
-            # Export 
-            logger.info("Exporting data...")
-            self.exporter.export(transformed)
+            # Export
+            if self.exporter: 
+                logger.info("Exporting data...")
+                self.exporter.export(transformed.to_pandas())
+            else:
+                logger.info("No exporter configured, skipping export")
+                
         except Exception as e:
             raise RuntimeError(f"Pipeline failed: {e}") from e
         

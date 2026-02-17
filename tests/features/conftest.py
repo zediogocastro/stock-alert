@@ -6,7 +6,7 @@ and its subfolders (pytest discovers conftest.py files automatically).
 """
 import pytest
 from stock_alert.features.moving_average import MovingAverage
-from tests.conftest import COLUMN_NAME, SORT_COLUMN
+from tests.conftest import COLUMN_NAME, SORT_COLUMN, IDENTIFIER_COLUMN
 
 
 # MovingAverage-specific constants
@@ -21,7 +21,8 @@ def ma_3day() -> MovingAverage:
     return MovingAverage(
         column=COLUMN_NAME,
         window_days=WINDOW_3,
-        sort_by_column=SORT_COLUMN
+        sort_by=SORT_COLUMN,
+        group_by=IDENTIFIER_COLUMN,
     )
 
 
@@ -31,7 +32,8 @@ def ma_21day() -> MovingAverage:
     return MovingAverage(
         column=COLUMN_NAME,
         window_days=WINDOW_21,
-        sort_by_column=SORT_COLUMN
+        sort_by=SORT_COLUMN,
+        group_by=IDENTIFIER_COLUMN,
     )
 
 
@@ -41,5 +43,6 @@ def ma_50day() -> MovingAverage:
     return MovingAverage(
         column=COLUMN_NAME,
         window_days=WINDOW_50,
-        sort_by_column=SORT_COLUMN
+        sort_by=SORT_COLUMN,
+        group_by=IDENTIFIER_COLUMN,
     )

@@ -1,6 +1,7 @@
-from stock_alert import YFinanceFetcher, DataPipeline, PlotExporter
-from stock_alert.exporter import CSVExporter, CompositeExporter
+from stock_alert import YFinanceFetcher, DataPipeline
 from stock_alert.features import FeatureEngine, MovingAverage
+from stock_alert.exporter import PlotExporter, CSVExporter, CompositeExporter
+
 from common.logger import logger
 
 #---------------------## Config ##---------------------#
@@ -10,16 +11,14 @@ TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT"]
 PERIOD = "2y"
 
 # Feature Engineering
-GROUP_BY = "identifier"
+IDENTIFIER = "identifier"
 SORT_BY = "Date"
 COLUMN = "Close"
 
 # Exporters
-FILE_NAME = "reports/stock_report.csv"
-PLOT_NAME = "reports/stock_plot.png"
+REPORTS_DIR = "reports"
 
 # Display preference
-DISPLAY_CURRENCY = None # "EUR" 
 
 #---------------------## End ##---------------------#
 
@@ -32,28 +31,29 @@ if __name__ == "__main__":
     )
 
     # Initialize Feature Engine with multiple features
-    feature_engine = (
-        FeatureEngine(group_by=GROUP_BY)
-        .add(MovingAverage(column=COLUMN, window_days=21, sort_by_column=SORT_BY))
-        .add(MovingAverage(column=COLUMN, window_days=50, sort_by_column=SORT_BY))
-        .add(MovingAverage(column=COLUMN, window_days=200, sort_by_column=SORT_BY))
-    )
+    features_to_copute = [
+        MovingAverage(column=COLUMN, window_days=21, sort_by=SORT_BY, group_by=IDENTIFIER),
+        MovingAverage(column=COLUMN, window_days=50, sort_by=SORT_BY, group_by=IDENTIFIER),
+        MovingAverage(column=COLUMN, window_days=200, sort_by=SORT_BY, group_by=IDENTIFIER),
+    ]
+    feature_engine = FeatureEngine(features=features_to_copute)
 
-    # Initialize multiple exporters
-    exporter_plot = PlotExporter(
-        filename=PLOT_NAME,
-        columns=["Close" , "sma_21"],
-        display_currency=DISPLAY_CURRENCY
-    )
-    exporter_data = CSVExporter(
-        filename=FILE_NAME
-    )
-    exporter = CompositeExporter([
-        exporter_plot,
-        exporter_data
-    ])
+    # # Initialize multiple exporters
+    # exporter_plot = PlotExporter(
+    #     output_dir=REPORTS_DIR,
+    #     columns=["Close" , "sma_21d", "sma_200d"],
+    #     GROUP_BY=IDENTIFIER
+    # )
+    # exporter_data = CSVExporter(
+    #     output_dir=REPORTS_DIR,
+    #     filename="stock_report.csv"
+    # )
+    # exporter = CompositeExporter([
+    #     exporter_plot,
+    #     exporter_data
+    # ])
 
     # Initialize and run pipeline
-    pipeline = DataPipeline(fetcher, feature_engine, exporter)
+    pipeline = DataPipeline(fetcher, feature_engine)
     pipeline.run()
     logger.info("✅ Pipeline Completed!")

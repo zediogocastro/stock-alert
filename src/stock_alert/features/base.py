@@ -13,7 +13,7 @@ class Feature(ABC):
         pass
     
     @abstractmethod
-    def compute(self, data: pl.LazyFrame, group_by: str | None = None) -> pl.LazyFrame:
+    def compute(self, data: pl.LazyFrame) -> pl.LazyFrame:
         """Add the feature column to the LazyFrame and return it
         
         Args:
@@ -29,25 +29,24 @@ class Feature(ABC):
 class FeatureEngine:
     """Composes multiple features with efficient Polars execution"""
     
-    def __init__(self, group_by: str | None = None) -> None:
+    def __init__(self, features: list[Feature]) -> None:
         """
         Args:
-            group_by: Optional column to group by (applied to all features)
+            features: List of Features to be applied
         """
-        self.features: list[Feature] = []
-        self.group_by = group_by
-    
-    def add(self, feature: Feature) -> "FeatureEngine":
-        """Add a feature (fluent interface)"""
-        self.features.append(feature)
-        return self
+        if not features:
+            raise ValueError("FeatureEngine requires at least one feature")
+        self.features = features
+
     
     def transform(self, data: pl.DataFrame | pl.LazyFrame) -> pl.DataFrame:
         """Apply all features in order"""
         lf = data.lazy() if isinstance(data, pl.DataFrame) else data
-        
+
+        # TODO take out from feature the responsability of adding to master table, 
+        # just return the series
         for feature in self.features:
-            lf = feature.compute(lf, self.group_by)
+            lf = feature.compute(lf)
         
         logger.info(f"Applied {len(self.features)} features")
         return lf.collect()
