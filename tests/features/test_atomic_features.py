@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 from datetime import date
 from polars.testing import assert_series_equal
-from stock_alert.features.atomic_features import Returns
+from stock_alert.features.atomic_features import Returns, Volatility
 
 @pytest.fixture
 def sample_data():
@@ -28,3 +28,15 @@ def test_returns(sample_data):
     assert result[2] == pytest.approx(0.1, abs=1e-6)
     assert result[3] == pytest.approx(-0.0909, abs=1e-3)
     assert result[4] == pytest.approx(-0.0909, abs=1e-3)
+
+def test_volatility(sample_data):
+    # Volatility of a constant series should be 0
+    df_stable = pl.DataFrame({
+        "date": [1, 2, 3],
+        "price": [10.0, 10.0, 10.0]
+    })
+    feature = Volatility(column="price", window_days=2, sort_by="date")
+    result = df_stable.select(feature.compute()).to_series()
+    
+    assert result[1] == 0.0
+    assert result[2] == 0.0
