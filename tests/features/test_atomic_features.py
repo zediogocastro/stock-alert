@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 from datetime import date
 from polars.testing import assert_series_equal
-from stock_alert.features.atomic_features import Returns, Volatility
+from stock_alert.features.atomic_features import Returns, Volatility, Lag
 
 @pytest.fixture
 def sample_data():
@@ -40,3 +40,12 @@ def test_volatility(sample_data):
     
     assert result[1] == 0.0
     assert result[2] == 0.0
+
+def test_lag(sample_data):
+    feature = Lag(column="price", n_days=1, sort_by="date", group_by="symbol")
+    result = sample_data.select(feature.compute()).to_series()
+    
+    # Values should be shifted down by 1
+    expected = pl.Series("lag_1d", [None, 100.0, 110.0, 121.0, 110.0])
+    assert_series_equal(result, expected)
+
