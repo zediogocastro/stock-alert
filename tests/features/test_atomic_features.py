@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 from datetime import date
 from polars.testing import assert_series_equal
-from stock_alert.features.atomic_features import Returns, Volatility, Lag
+from stock_alert.features.atomic_features import Returns, Volatility, Lag, RelativeStrengthIndex
 
 @pytest.fixture
 def sample_data():
@@ -49,3 +49,15 @@ def test_lag(sample_data):
     expected = pl.Series("lag_1d", [None, 100.0, 110.0, 121.0, 110.0])
     assert_series_equal(result, expected)
 
+def test_rsi_overbought():
+    # Price only goes up -> RSI should be 100
+    df_up = pl.DataFrame({
+        "date": [1, 2, 3, 4],
+        "price": [10, 20, 30, 40]
+    })
+    feature = RelativeStrengthIndex(column="price", window_days=2, sort_by="date")
+    result = df_up.select(feature.compute()).to_series()
+    
+    # Once the window is full (index 2 and 3), RSI should be 100
+    assert result[2] == 100.0
+    assert result[3] == 100.0
