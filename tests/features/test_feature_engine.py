@@ -1,7 +1,7 @@
 # tests/features/test_feature_engine.py
 import polars as pl
-from src.stock_alert.features.feature_base import FeatureEngine
-from src.stock_alert.features.moving_average import MovingAverage
+from stock_alert.features.feature_base import FeatureEngine
+from stock_alert.features.moving_average import MovingAverage
 
 def test_feature_engine_adds_multiple_columns():
     # Setup

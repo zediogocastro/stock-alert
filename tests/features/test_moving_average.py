@@ -1,6 +1,6 @@
 import polars as pl
 from polars.testing import assert_series_equal
-from src.stock_alert.features.moving_average import MovingAverage
+from stock_alert.features.moving_average import MovingAverage
 
 def test_moving_average_calculation():
     # Simple Data
