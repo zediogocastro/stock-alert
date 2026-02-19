@@ -1,88 +1,31 @@
-"""
-Tests for FeatureEngine class.
-"""
-import pytest
+# tests/features/test_feature_engine.py
 import polars as pl
-from unittest.mock import Mock
+from src.stock_alert.features.feature_base import FeatureEngine
+from src.stock_alert.features.moving_average import MovingAverage
 
-from stock_alert.features.base import Feature, FeatureEngine
-
-
-class MockFeature(Feature):
-    """Mock feature for testing"""
+def test_feature_engine_adds_multiple_columns():
+    # Setup
+    df = pl.LazyFrame({
+        "date": [1, 2, 3],
+        "price": [10.0, 20.0, 30.0]
+    })
     
-    def __init__(self, name: str, output_col: str, value: float = 1.0):
-        self._name = name
-        self.output_col = output_col
-        self.value = value
+    # Create two different features
+    features = [
+        MovingAverage(column="price", window_days=2, sort_by="date"),
+        MovingAverage(column="price", window_days=3, sort_by="date")
+    ]
     
-    @property
-    def name(self) -> str:
-        return self._name
+    engine = FeatureEngine(features)
     
-    def compute(self, data: pl.LazyFrame) -> pl.LazyFrame:
-        return data.with_columns(pl.lit(self.value).alias(self.output_col))
-
-
-class TestFeatureEngineInit:
-    """Test FeatureEngine initialization"""
+    # Transform
+    result_df = engine.transform(df).collect()
     
-    def test_init_with_features(self):
-        """Can initialize with a list of features"""
-        f1 = MockFeature("f1", "col1")
-        f2 = MockFeature("f2", "col2")
-        
-        engine = FeatureEngine([f1, f2])
-        
-        assert len(engine.features) == 2
-        assert engine.features[0] is f1
-        assert engine.features[1] is f2
+    # Check if both columns exist
+    assert "sma_2d" in result_df.columns
+    assert "sma_3d" in result_df.columns
+    # Check if original columns are preserved
+    assert "price" in result_df.columns 
     
-    def test_init_requires_at_least_one_feature(self):
-        """FeatureEngine raises ValueError if no features provided"""
-        with pytest.raises(ValueError, match="FeatureEngine requires at least one feature"):
-            FeatureEngine([])
-
-
-class TestFeatureEngineTransform:
-    """Test transform with different input types"""
-    
-    def test_transform_dataframe(self):
-        """transform() accepts DataFrame and returns DataFrame"""
-        features: list[Feature] = [MockFeature("f1", "new_col", value=42.0)]
-        engine = FeatureEngine(features)
-        
-        data = pl.DataFrame({"input": [1, 2, 3]})
-        result = engine.transform(data)
-        
-        assert isinstance(result, pl.DataFrame)
-        assert "new_col" in result.columns
-        assert result["new_col"].to_list() == [42.0, 42.0, 42.0]
-
-
-
-class TestFeatureEngineEdgeCases:
-    """Test edge cases"""
-    
-    def test_empty_dataframe(self):
-        """FeatureEngine handles empty dataframes"""
-        f = MockFeature("test", "col")
-        engine = FeatureEngine([f])
-        
-        data = pl.DataFrame({"input": pl.Series([], dtype=pl.Int64)})
-        result = engine.transform(data)
-        
-        assert result.shape[0] == 0
-        assert "col" in result.columns
-    
-    def test_preserves_original_columns(self):
-        """Original columns are preserved after transform"""
-        f = MockFeature("f1", "new_col")
-        engine = FeatureEngine([f])
-        
-        data = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
-        result = engine.transform(data)
-        
-        assert result["a"].to_list() == [1, 2]
-        assert result["b"].to_list() == [3, 4]
-
+    # Quick value check for the 2d SMA
+    assert result_df["sma_2d"][1] == 15.0

@@ -1,5 +1,8 @@
+"""Simple Moving Averages (SMAs) are crucial in economics and finance for 
+smoothing out volatile, short-term fluctuations (noise) in data
+"""
 import polars as pl
-from .base import Feature
+from .feature_base import Feature
 
 class MovingAverage(Feature):
     """Simple Moving Average feature based on a window of x days
@@ -9,17 +12,18 @@ class MovingAverage(Feature):
     """
 
     def __init__(
-            self, column: str, 
+            self, 
+            column: str, 
             window_days: int, 
             sort_by: str, 
             group_by: str | None = None,
     ) -> None:
         """
         Args:
-            column: Column to compute SMA on
-            window_days: Size of rolling window
-            sort_by_column: Column to sort by before computing
-            group_by: Optional column to group by before computing
+            column: Column to compute SMA on.
+            window_days: Size of rolling window.
+            sort_by_column: Column to sort by before computing.
+            group_by: Optional column to group by before computing.
         """
         self.column = column
         self.window_days = window_days
@@ -30,23 +34,17 @@ class MovingAverage(Feature):
     def name(self) -> str:
         return f"sma_{self.window_days}d"
     
-    def compute(self, data: pl.LazyFrame) -> pl.LazyFrame:
-        """Compute SMA with sorting applied"""
-        if self.group_by:
-            # Sort within each group
-            data = data.sort([self.group_by, self.sort_by])
-        else:
-            # Sort entire dataset
-            data = data.sort(self.sort_by)
-        
-        # Compute rolling mean 
+    def compute(self) -> pl.Expr:
+        """Returns the rolling mean expression."""
+        # Create rolling mean logic
         expr = pl.col(self.column).rolling_mean(window_size=self.window_days)
 
-        if self.group_by:
-            expr = expr.over(self.group_by)
-
-        result = data.select(expr.alias(self.name))
-
-        return data.with_columns(expr.alias(self.name))
+        # Add the context (Grouping and Sorting)
+        # If group_by is None, .over(None) is valid and processes the whole column
+        expr = expr.over(
+            partition_by=self.group_by,
+            order_by=self.sort_by
+        )
+ 
+        return expr.alias(self.name)
     
-

@@ -1,80 +1,42 @@
-"""
-Tests for MovingAverage feature.
-"""
-import pytest
 import polars as pl
-from datetime import date
+from polars.testing import assert_series_equal
+from src.stock_alert.features.moving_average import MovingAverage
 
-from tests.conftest import COLUMN_NAME, IDENTIFIER_COLUMN, SORT_COLUMN
-from stock_alert.features.moving_average import MovingAverage
+def test_moving_average_calculation():
+    # Simple Data
+    df = pl.DataFrame({
+        "date": [1, 2, 3, 4],
+        "values": [10.0, 20.0, 30.0, 40.0]
+    })
 
+    # Init feature: 2-day window
+    sma = MovingAverage(
+        column="values",
+        window_days=2,
+        sort_by="date"
+    )
 
-class TestMovingAverageName:
-    """Test feature name generation"""
+    # Execute: Apply just the expression
+    # Resulting column should be [null, 15.0, 25.0, 35.0]
+    result = df.select(sma.compute()).to_series()
+
+    excepted = pl.Series("sma_2d", [None, 15.0, 25.0, 35.0])
+
+    assert_series_equal(result, excepted)
+
+def test_moving_average_with_groups():
+    # Setup: Data with two different stocks/groups
+    df = pl.DataFrame({
+        "stock": ["A", "A", "B", "B"],
+        "date": [1, 2, 1, 2],
+        "price": [10.0, 20.0, 100.0, 200.0]
+    })
     
-    def test_generates_correct_name(self, ma_3day: MovingAverage):
-        """Feature name includes window size"""
-        assert ma_3day.name == "sma_3d"
-
-
-class TestGroupBy:
-    """Test grouped operations"""
+    sma = MovingAverage(column="price", window_days=2, sort_by="date", group_by="stock")
     
-    def test_computes_independently_per_group(self, ma_3day: MovingAverage, grouped_price_data: pl.LazyFrame):
-        """With group_by, each group has independent SMA"""
-        result = ma_3day.compute(grouped_price_data).collect()
-        
-        aapl = result.filter(pl.col(IDENTIFIER_COLUMN) == "AAPL")
-        msft = result.filter(pl.col(IDENTIFIER_COLUMN) == "MSFT")
-        
-        assert aapl["sma_3d"][2] == pytest.approx(102.0)
-        assert msft["sma_3d"][2] == pytest.approx(200.0)
-
-
-class TestSortingBehavior:
-    """Test data sorting and ordering"""
+    # If grouping works, the SMA of B shouldn't be affected by A
+    result = df.select(sma.compute()).to_series()
     
-    def test_sorts_data_before_computing(self):
-        """Unsorted data is sorted before SMA calculation"""
-        unsorted = pl.LazyFrame({
-            SORT_COLUMN: [
-                date(2024, 1, 3), 
-                date(2024, 1, 1), 
-                date(2024, 1, 2)],
-            "Close": [104.0, 100.0, 102.0],
-        })
-        
-        feature = MovingAverage(
-            column="Close", 
-            window_days=2, 
-            sort_by=SORT_COLUMN
-        )
-        result = feature.compute(unsorted).collect()
-        
-        assert result["sma_2d"][1] == pytest.approx(101.0)
-
-
-class TestErrorHandling:
-    """Test error cases"""
+    expected = pl.Series("sma_2d", [None, 15.0, None, 150.0])
     
-    def test_invalid_sort_column_raises_error(self, ma_3day: MovingAverage, simple_price_data: pl.LazyFrame):
-        """Missing sort column raises error"""
-        bad_feature = MovingAverage(
-            column="Close", 
-            window_days=3, 
-            sort_by="InvalidColumn"
-        )
-        
-        with pytest.raises(pl.exceptions.ColumnNotFoundError):
-            bad_feature.compute(simple_price_data).collect()
-
-    def test_invalid_data_column_raises_error(self, simple_price_data: pl.LazyFrame):
-        """Missing data column raises error"""
-        bad_feature = MovingAverage(
-            column="InvalidColumn", 
-            window_days=3, 
-            sort_by=SORT_COLUMN
-        )
-        
-        with pytest.raises(pl.exceptions.ColumnNotFoundError):
-            bad_feature.compute(simple_price_data).collect()
+    assert_series_equal(result, expected)

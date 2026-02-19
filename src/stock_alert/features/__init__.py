@@ -1,4 +1,4 @@
-from .base import Feature, FeatureEngine
+from .feature_base import Feature, FeatureEngine
 from .moving_average import MovingAverage
 
 __all__ = [

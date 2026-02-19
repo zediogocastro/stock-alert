@@ -27,12 +27,14 @@ class DataPipeline:
             
             # Transform (Feature Engineering)
             logger.info("Generating features...")
-            transformed = self.feature_engine.transform(pl.from_pandas(data))
+            data = pl.from_pandas(data).lazy()
+            transformed = self.feature_engine.transform(data)
 
             # Export
             if self.exporter: 
                 logger.info("Exporting data...")
-                self.exporter.export(transformed.to_pandas())
+                data_to_export = transformed.collect().to_pandas()
+                self.exporter.export(data_to_export)
             else:
                 logger.info("No exporter configured, skipping export")
                 
