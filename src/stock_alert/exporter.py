@@ -1,15 +1,60 @@
+#TODO improve Exporter
+import os
 from abc import ABC, abstractmethod
 from typing import List
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 
+
+"""Plotting utilities for data visualization"""
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+
+
+def create_line_plot(
+    data: pd.DataFrame,
+    x_column: str,
+    y_columns: list[str],
+    title: str = "Analysis",
+    xlabel: str = "X",
+    ylabel: str = "Y",
+    figsize: tuple[int, int] = (12, 6)
+) -> Figure:
+    """Create a line plot and return the figure
+    
+    Args:
+        data: DataFrame with data to plot
+        x_column: Column name for x-axis
+        y_columns: List of column names for y-axis
+        title: Plot title
+        xlabel: X-axis label
+        ylabel: Y-axis label
+        figsize: Figure size (width, height)
+    
+    Returns:
+        Matplotlib Figure object
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    for column in y_columns:
+        if column in data.columns:
+            ax.plot(data[x_column], data[column], label=column)
+    
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    ax.grid(True, alpha=0.3, linestyle='--')
+    fig.tight_layout()
+    
+    return fig
 
 class BaseExporter(ABC):
     """Base class for data exporters"""
     
-    def __init__(self, filename: str) -> None:
-        self.filename = filename
+    def __init__(self, output_dir: str) -> None:
+        self.output_dir = output_dir
     
     def export(self, df: pd.DataFrame) -> None:
         """Template method: handles common logic"""
@@ -23,10 +68,8 @@ class BaseExporter(ABC):
     
     def _ensure_directory_exists(self) -> None:
         """Shared utility: ensure output directory exists"""
-        import os
-        directory = os.path.dirname(self.filename)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
+        if self.output_dir:
+            os.makedirs(self.output_dir, exist_ok=True)
 
 class CompositeExporter(BaseExporter):
     """
@@ -64,32 +107,45 @@ class CompositeExporter(BaseExporter):
 
 class CSVExporter(BaseExporter):
     """Exporter that writes data to CSV files"""
+    def __init__(self, output_dir: str, filename: str) -> None:
+        super().__init__(output_dir)
+        self.filename = filename
+
     def _write(self, df: pd.DataFrame) -> None:
-        df.data.to_csv(self.filename, index=True)
+        filepath = os.path.join(self.output_dir, self.filename)
+        df.data.to_csv(filepath, index=True)
 
 class PlotExporter(BaseExporter):
-    """Exporter that creates a seaborn plot"""
-    def __init__(self, filename: str, columns: list[str],  display_currency: str | None = None) -> None:
-        super().__init__(filename)
+    """Exporter that creates line plots for multiple tickers"""
+    def __init__(self, output_dir: str, columns: list[str], group_by: str) -> None:
+        super().__init__(output_dir)
         self.columns = columns
-        self.display_currency = display_currency
+        self.group_by = group_by
+
+    def _save_figure(self, fig, filename: str, dpi: int = 100) -> None:
+        """Save figure to output directory"""
+        filepath = os.path.join(self.output_dir, filename)
+        fig.savefig(filepath, dpi=dpi)
+        plt.close(fig)
 
     def _write(self, df: pd.DataFrame) -> None:
-        plt.figure(figsize=(12, 6))
-        for column in self.columns:
-            sns.lineplot(
-                data=df,
-                x="Date",
-                y=column,
-                label=column
+        if self.group_by not in df.columns:
+            return
+        
+        tickers = df[self.group_by].unique()
+        for ticker in tickers:
+            ticker_data = df[df[self.group_by] == ticker]
+
+            fig = create_line_plot(
+                data=ticker_data,
+                x_column="Date",
+                y_columns=self.columns,
+                title=f"{ticker} Price Analysis",
+                xlabel="Date",
+                ylabel="Euro" #TODO Improve this
             )
-        title = f"{df.name or df.ticker} Price Analysis"
-        plt.title(title)
-        plt.xlabel("Date")
-        plt.ylabel(f"Price ({df.currency})")
-        plt.legend()
-        plt.grid(True, alpha=0.3, linestyle='--')
-        plt.tight_layout()
-        plt.savefig(self.filename)
-        plt.close()
+            
+            self._save_figure(fig, ticker)
+
+        
         
