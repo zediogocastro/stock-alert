@@ -38,9 +38,9 @@ if __name__ == "__main__":
         MovingAverage(column=COLUMN, window_days=21, sort_by=SORT_BY, group_by=IDENTIFIER),
         MovingAverage(column=COLUMN, window_days=50, sort_by=SORT_BY, group_by=IDENTIFIER),
         MovingAverage(column=COLUMN, window_days=200, sort_by=SORT_BY, group_by=IDENTIFIER),
-        #Returns(column=COLUMN, n_days=1, sort_by=SORT_BY, group_by=IDENTIFIER),
-        #Volatility(column=COLUMN, window_days=21, sort_by=SORT_BY, group_by=IDENTIFIER),
-        #RelativeStrengthIndex(column=COLUMN, window_days=14, sort_by=SORT_BY, group_by=IDENTIFIER)
+        Returns(column=COLUMN, n_days=1, sort_by=SORT_BY, group_by=IDENTIFIER),
+        Volatility(column=COLUMN, window_days=21, sort_by=SORT_BY, group_by=IDENTIFIER),
+        RelativeStrengthIndex(column=COLUMN, window_days=14, sort_by=SORT_BY, group_by=IDENTIFIER)
     ]
     feature_engine = FeatureEngine(features=features_to_copute)
 
