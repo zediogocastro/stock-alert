@@ -112,7 +112,7 @@ with col2:
             ))
 
             fig.update_layout(yaxis_title="Normalized Price")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
         else:
             st.info("Select tickers and a time horizon to see the comparison.")
 
@@ -153,7 +153,7 @@ with st.container(border=True):
                 fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
                 
                 ticker_data['overbought'] = ticker_data['rsi_14d'] > 70
-                ticker_data['overbought_shifted'] = ticker_data['overbought'].shift(1).fillna(False)
+                ticker_data['overbought_shifted'] = ticker_data['overbought'].shift(1, fill_value=False)
                 overbought_starts = ticker_data[ticker_data['overbought'] & ~ticker_data['overbought_shifted']]['Date']
                 overbought_ends = ticker_data[~ticker_data['overbought'] & ticker_data['overbought_shifted']]['Date']
                 
@@ -164,7 +164,7 @@ with st.container(border=True):
                     fig.add_vrect(x0=start, x1=end, fillcolor="red", opacity=0.2, layer="below", line_width=0, row=1, col=1)
 
                 ticker_data['oversold'] = ticker_data['rsi_14d'] < 30
-                ticker_data['oversold_shifted'] = ticker_data['oversold'].shift(1).fillna(False)
+                ticker_data['oversold_shifted'] = ticker_data['oversold'].shift(1, fill_value=False)
                 oversold_starts = ticker_data[ticker_data['oversold'] & ~ticker_data['oversold_shifted']]['Date']
                 oversold_ends = ticker_data[~ticker_data['oversold'] & ticker_data['oversold_shifted']]['Date']
 
@@ -182,6 +182,6 @@ with st.container(border=True):
                 fig.update_yaxes(title_text="Price", row=1, col=1)
                 fig.update_yaxes(title_text="RSI", row=2, col=1)
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig)
     else:
         st.info("Select tickers to see the analysis.")

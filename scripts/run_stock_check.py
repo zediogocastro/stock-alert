@@ -8,7 +8,7 @@ from common.logger import logger
 #---------------------## Config ##---------------------#
 # Fetcher
 #TICKER = "AAPL" #"IE00BFMXXD54" # "^GSPC"
-TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT"]
+TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT", "PLTR"]
 PERIOD = "5y"
 
 # Feature Engineering
@@ -43,21 +43,6 @@ if __name__ == "__main__":
         RelativeStrengthIndex(column=COLUMN, window_days=14, sort_by=SORT_BY, group_by=IDENTIFIER)
     ]
     feature_engine = FeatureEngine(features=features_to_copute)
-
-    # # Initialize multiple exporters
-    # exporter_plot = PlotExporter(
-    #     output_dir=REPORTS_DIR,
-    #     columns=["Close" , "sma_21d", "sma_200d"],
-    #     GROUP_BY=IDENTIFIER
-    # )
-    # exporter_data = CSVExporter(
-    #     output_dir=REPORTS_DIR,
-    #     filename="stock_report.csv"
-    # )
-    # exporter = CompositeExporter([
-    #     exporter_plot,
-    #     exporter_data
-    # ])
 
     # Initialize and run pipeline
     pipeline = DataPipeline(fetcher, feature_engine, master_table_directory=MASTER_TABLE_CACHE)

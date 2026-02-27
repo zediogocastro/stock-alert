@@ -12,6 +12,19 @@
             "env": {
                 "LOG_LEVEL": "DEBUG"
             }
+        },
+        {
+            "name": "Run Streamlit",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "src/dashboard/🏡_Home.py"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": true
         }
     ]
 }
