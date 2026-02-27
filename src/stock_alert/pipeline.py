@@ -4,18 +4,15 @@ from common.logger import logger
 from stock_alert.fetcher import BaseFetcher
 #from stock_alert.transformer import Transformer
 from stock_alert.features import FeatureEngine
-from stock_alert.exporter import BaseExporter
 
 class DataPipeline:
     """Class that is responsible for the ETL pipeline"""
     def __init__(self, 
                  fetcher: BaseFetcher, 
                  feature_engine: FeatureEngine, 
-                 exporter: BaseExporter | None = None,
                  master_table_directory: str | None = None):
         self.fetcher = fetcher
         self.feature_engine = feature_engine
-        self.exporter = exporter
         self.master_table_directory = master_table_directory
 
     def run(self) -> None:
@@ -36,14 +33,6 @@ class DataPipeline:
             if self.master_table_directory:
                 master_table_path = Path(self.master_table_directory) / "master_table.parquet"
                 self._save_data(transformed, master_table_path)
-
-            # Export
-            if self.exporter: 
-                logger.info("Exporting data...")
-                data_to_export = transformed.collect().to_pandas()
-                self.exporter.export(data_to_export)
-            else:
-                logger.info("No exporter configured, skipping export")
                 
         except Exception as e:
             raise RuntimeError(f"Pipeline failed: {e}") from e
