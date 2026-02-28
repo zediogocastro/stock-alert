@@ -1,7 +1,6 @@
 from stock_alert import YFinanceFetcher, DataPipeline
 from stock_alert.features import FeatureEngine, MovingAverage
 from stock_alert.features.atomic_features import Returns, Volatility, RelativeStrengthIndex
-#from stock_alert.exporter import PlotExporter, CSVExporter, CompositeExporter
 
 from common.logger import logger
 
