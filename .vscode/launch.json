@@ -2,10 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run Pipeline",
+            "name": "Fetch Data",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/run_stock_check.py",
+            "program": "${workspaceFolder}/scripts/fetch_data.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": true,
+            "env": {
+                "LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "Generate Features",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/generate_features.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": true,

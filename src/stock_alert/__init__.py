@@ -1,6 +1,6 @@
 from .fetcher import BaseFetcher, YFinanceFetcher, EuriborFetcher
 from .features import Feature, FeatureEngine, MovingAverage
-from .pipeline import DataPipeline
+from .pipeline import FetcherService, FeatureService
 
 __version__ = "0.1.0"
 
@@ -11,5 +11,6 @@ __all__ = [
     "Feature",
     "FeatureEngine",
     "MovingAverage",
-    "DataPipeline",
+    "FetcherService",
+    "FeatureService",
 ]
