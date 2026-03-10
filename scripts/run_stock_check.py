@@ -30,7 +30,6 @@ if __name__ == "__main__":
     fetcher = YFinanceFetcher(
         identifiers=TICKERS,
         period=PERIOD,
-        cache_dir="data/ingested"
     )
 
     # Initialize Feature Engine with multiple features
