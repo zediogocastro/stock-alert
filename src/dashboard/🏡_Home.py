@@ -17,8 +17,7 @@ st.markdown(
     **👈 Select an analysis page from the sidebar** to get started.
     
     ### Available Pages:
-    - **Stock Analysis**: A powerful tool for peer comparison and technical analysis of individual stocks.
-    
-    More pages with economic data and other analyses will be added soon!
+    - **📈 Stock Analysis**: Peer comparison and technical analysis (price, RSI, normalized returns).
+    - **📉 Euribor**: Live Euribor rates across all maturities, yield curve analysis, spread charts, and MoM change heatmap.
     """
 )
