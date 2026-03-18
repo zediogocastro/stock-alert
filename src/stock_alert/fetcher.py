@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 import io
+import ssl
 import urllib.request
+
+import certifi
 
 import pandas as pd
 import yfinance as yf
@@ -79,7 +82,23 @@ class YFinanceFetcher(BaseFetcher):
 
 
 class EuriborFetcher(BaseFetcher):
-    """Fetcher to retrieve Euribor rates from the ECB Statistical Data Warehouse"""
+    """Fetcher to retrieve Euribor rates from the ECB Statistical Data Warehouse.
+
+    Data source: ECB Statistical Data Warehouse (SDW), Financial Markets dataset (FM).
+    API: https://data-api.ecb.europa.eu/service/data/FM
+
+    The ECB FM dataset publishes Euribor as monthly averages of daily business-day
+    fixings (historical close, average of observations through period). This is the
+    only frequency available for Euribor via this API — daily business-day fixings
+    are published by EMMI (the Euribor administrator) and are not freely accessible
+    via the ECB endpoint.
+
+    Each tenor is a separate series in the ECB system:
+        1M  → EURIBOR1MD_  (1-month rate)
+        3M  → EURIBOR3MD_  (3-month rate, most liquid benchmark)
+        6M  → EURIBOR6MD_  (6-month rate)
+        12M → EURIBOR1YD_  (12-month / 1-year rate)
+    """
     SUBFOLDER = "euribor"
 
     _ECB_BASE_URL = "https://data-api.ecb.europa.eu/service/data/FM"
@@ -104,14 +123,22 @@ class EuriborFetcher(BaseFetcher):
         return f"{self._ECB_BASE_URL}/M.U2.EUR.RT.MM.{series_ids}.HSTA?format=csvdata"
 
     def fetch(self) -> pd.DataFrame:
-        """Fetch Euribor rates from the ECB and return a tidy DataFrame."""
+        """Fetch monthly Euribor rates from the ECB and return a tidy DataFrame.
+
+        Returns a DataFrame with columns:
+            Date       — first day of each month (datetime)
+            rate       — Euribor rate in percent per annum
+            tenor      — human-readable tenor label (e.g. '3M', '12M')
+            identifier — prefixed label used downstream (e.g. 'EURIBOR_3M')
+        """
         logger.info(f"Fetching Euribor rates for tenors: {self.tenors}")
 
         url = self._build_url()
         logger.debug(f"ECB API URL: {url}")
 
         req = urllib.request.Request(url, headers={"Accept": "text/csv"})
-        with urllib.request.urlopen(req, timeout=30) as response:
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        with urllib.request.urlopen(req, timeout=30, context=ssl_ctx) as response:
             raw = pd.read_csv(io.BytesIO(response.read()))
 
         # Map internal ECB series IDs back to friendly tenor names

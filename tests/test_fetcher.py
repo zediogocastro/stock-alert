@@ -81,6 +81,14 @@ def test_euribor_fetcher_defaults_to_all_tenors():
     assert sorted(fetcher.tenors) == ["12M", "1M", "3M", "6M"]
 
 
+def _make_mock_urlopen(csv_content: bytes):
+    mock_response = MagicMock()
+    mock_response.read.return_value = csv_content
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = MagicMock(return_value=False)
+    return mock_response
+
+
 @patch("stock_alert.fetcher.urllib.request.urlopen")
 def test_euribor_fetcher_parses_ecb_response(mock_urlopen, tmp_path):
     csv_content = (
@@ -89,12 +97,7 @@ def test_euribor_fetcher_parses_ecb_response(mock_urlopen, tmp_path):
         "2025-02,3.10,EURIBOR3MD_\n"
         "2025-01,3.50,EURIBOR1YD_\n"
     ).encode()
-
-    mock_response = MagicMock()
-    mock_response.read.return_value = csv_content
-    mock_response.__enter__ = lambda s: s
-    mock_response.__exit__ = MagicMock(return_value=False)
-    mock_urlopen.return_value = mock_response
+    mock_urlopen.return_value = _make_mock_urlopen(csv_content)
 
     fetcher = EuriborFetcher(tenors=["3M", "12M"])
     fetcher.cache_dir = str(tmp_path)
@@ -104,4 +107,5 @@ def test_euribor_fetcher_parses_ecb_response(mock_urlopen, tmp_path):
     assert len(df) == 3
     assert set(df["tenor"]) == {"3M", "12M"}
     assert set(df["identifier"]) == {"EURIBOR_3M", "EURIBOR_12M"}
+    assert df["Date"].dt.day.eq(1).all()  # monthly dates parsed to first of month
     assert (tmp_path / "euribor" / "data.parquet").exists()
