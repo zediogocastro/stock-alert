@@ -1,4 +1,4 @@
-from stock_alert import YFinanceFetcher, EuriborFetcher, FetcherService
+from stock_alert import YFinanceFetcher, EuriborFetcher, OilFetcher, FetcherService
 from common.logger import logger
 
 # ---------------------## Config ##---------------------#
@@ -11,5 +11,6 @@ if __name__ == "__main__":
     FetcherService(fetchers=[
         YFinanceFetcher(identifiers=TICKERS, period=PERIOD),
         EuriborFetcher(),
+        OilFetcher(period=PERIOD),
     ]).run()
     logger.info("✅ Fetch completed!")

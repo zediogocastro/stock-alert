@@ -1,4 +1,4 @@
-from .fetchers import BaseFetcher, YFinanceFetcher, EuriborFetcher
+from .fetchers import BaseFetcher, YFinanceFetcher, EuriborFetcher, OilFetcher
 from .features import Feature, FeatureEngine, MovingAverage
 from .pipeline import FetcherService, FeatureService
 
@@ -8,6 +8,7 @@ __all__ = [
     "BaseFetcher",
     "YFinanceFetcher",
     "EuriborFetcher",
+    "OilFetcher",
     "Feature",
     "FeatureEngine",
     "MovingAverage",
