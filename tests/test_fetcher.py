@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
-from stock_alert.fetcher import BaseFetcher, YFinanceFetcher, EuriborFetcher
+from stock_alert.fetchers import BaseFetcher, YFinanceFetcher, EuriborFetcher
 
 
 # ── BaseFetcher ──────────────────────────────────────────────
@@ -37,7 +37,7 @@ def test_base_fetcher_defaults_to_base_cache_dir():
 
 # ── YFinanceFetcher ──────────────────────────────────────────
 
-@patch("stock_alert.fetcher.yf.Ticker")
+@patch("stock_alert.fetchers.yfinance.yf.Ticker")
 def test_yfinance_fetcher_combines_identifiers(mock_ticker_cls, tmp_path):
     mock_history = pd.DataFrame({
         "Close": [100.0, 101.0],
@@ -58,7 +58,7 @@ def test_yfinance_fetcher_combines_identifiers(mock_ticker_cls, tmp_path):
     assert (tmp_path / "stocks" / "data.parquet").exists()
 
 
-@patch("stock_alert.fetcher.yf.Ticker")
+@patch("stock_alert.fetchers.yfinance.yf.Ticker")
 def test_yfinance_fetcher_raises_when_all_fail(mock_ticker_cls):
     mock_ticker = MagicMock()
     mock_ticker.history.side_effect = RuntimeError("API down")
@@ -89,7 +89,7 @@ def _make_mock_urlopen(csv_content: bytes):
     return mock_response
 
 
-@patch("stock_alert.fetcher.urllib.request.urlopen")
+@patch("stock_alert.fetchers.euribor.urllib.request.urlopen")
 def test_euribor_fetcher_parses_ecb_response(mock_urlopen, tmp_path):
     csv_content = (
         "TIME_PERIOD,OBS_VALUE,PROVIDER_FM_ID\n"

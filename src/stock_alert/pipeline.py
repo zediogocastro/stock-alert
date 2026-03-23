@@ -1,7 +1,7 @@
 import polars as pl
 from pathlib import Path
 from common.logger import logger
-from stock_alert.fetcher import BaseFetcher
+from stock_alert.fetchers import BaseFetcher
 from stock_alert.features import FeatureEngine
 
 

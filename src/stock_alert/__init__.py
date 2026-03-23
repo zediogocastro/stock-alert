@@ -1,4 +1,4 @@
-from .fetcher import BaseFetcher, YFinanceFetcher, EuriborFetcher
+from .fetchers import BaseFetcher, YFinanceFetcher, EuriborFetcher
 from .features import Feature, FeatureEngine, MovingAverage
 from .pipeline import FetcherService, FeatureService
 
