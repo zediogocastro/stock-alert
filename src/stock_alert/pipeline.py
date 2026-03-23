@@ -2,50 +2,64 @@ import polars as pl
 from pathlib import Path
 from common.logger import logger
 from stock_alert.fetcher import BaseFetcher
-#from stock_alert.transformer import Transformer
 from stock_alert.features import FeatureEngine
 
-class DataPipeline:
-    """Class that is responsible for the ETL pipeline"""
-    def __init__(self, 
-                 fetcher: BaseFetcher, 
-                 feature_engine: FeatureEngine, 
-                 master_table_directory: str | None = None):
-        self.fetcher = fetcher
-        self.feature_engine = feature_engine
-        self.master_table_directory = master_table_directory
+
+class FetcherService:
+    """Orchestrates multiple fetchers, running each one independently.
+
+    Each fetcher is responsible for persisting its own raw data upon completion,
+    keeping data sources fully decoupled from one another.
+    """
+
+    def __init__(self, fetchers: list[BaseFetcher]) -> None:
+        self.fetchers = fetchers
 
     def run(self) -> None:
-        try:
-            logger.info("Starting pipeline execution")
+        """Run all fetchers sequentially, raising on the first failure."""
+        logger.info(f"Starting fetch stage ({len(self.fetchers)} fetcher(s))...")
+        for fetcher in self.fetchers:
+            name = type(fetcher).__name__
+            try:
+                logger.info(f"Running {name}...")
+                fetcher.fetch()
+                logger.info(f"{name} completed successfully")
+            except Exception as e:
+                raise RuntimeError(f"{name} failed: {e}") from e
+        logger.info("Fetch stage complete")
 
-            # Fetch Data
-            logger.info("Fetching data...")
-            data = self.fetcher.fetch()
-            if data.empty:
-                raise ValueError("No data fetched")
-            
-            # Transform (Feature Engineering)
+
+class FeatureService:
+    """Reads ingested data, applies feature engineering, and writes the master table.
+
+    Intentionally decoupled from fetching so it can be re-run independently
+    without making any external API calls.
+    """
+
+    def __init__(
+        self,
+        feature_engine: FeatureEngine,
+        ingested_data_path: str,
+        output_dir: str,
+    ) -> None:
+        self.feature_engine = feature_engine
+        self.ingested_data_path = Path(ingested_data_path)
+        self.output_dir = Path(output_dir)
+
+    def run(self) -> None:
+        """Load ingested data, compute all features, and persist the master table."""
+        try:
+            logger.info(f"Loading data from {self.ingested_data_path}...")
+            data = pl.scan_parquet(self.ingested_data_path)
+
             logger.info("Generating features...")
-            data = pl.from_pandas(data).lazy()
             transformed = self.feature_engine.transform(data)
 
-            if self.master_table_directory:
-                master_table_path = Path(self.master_table_directory) / "master_table.parquet"
-                self._save_data(transformed, master_table_path)
-                
+            output_path = self.output_dir / "master_table.parquet"
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            transformed.sink_parquet(output_path)
+            logger.info(f"Master table saved to {output_path}")
         except Exception as e:
-            raise RuntimeError(f"Pipeline failed: {e}") from e
-        
-    def _save_data(self, data: pl.LazyFrame, path: Path) -> None:
-        """Save data to a path.
-        
-        Args:
-            data:  Lazy Polars Data to be saved.
-            direcotry: The path of the file to be saved into.
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)  
-        data.sink_parquet(path)
-        logger.info(f"Saved raw data to {path}")
+            raise RuntimeError(f"Feature generation failed: {e}") from e
         
 
