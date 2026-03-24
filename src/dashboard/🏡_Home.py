@@ -19,5 +19,6 @@ st.markdown(
     ### Available Pages:
     - **📈 Stock Analysis**: Peer comparison and technical analysis (price, RSI, normalized returns).
     - **📉 Euribor**: Live Euribor rates across all maturities, yield curve analysis, spread charts, and MoM change heatmap.
+    - **🛢️ Crude Oil**: Brent and WTI price history, Brent–WTI spread analysis, and realized volatility — the key commodity to watch during geopolitical stress.
     """
 )
