@@ -212,7 +212,7 @@ with col_right:
             margin=dict(l=10, r=10, t=40, b=20),
             xaxis_rangeslider_visible=False,
         )
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width="stretch")
 
 # ── Brent – WTI Spread Analysis ────────────────────────────────────────────────
 st.markdown("---")
@@ -272,7 +272,7 @@ with st.container(border=True):
                 margin=dict(l=10, r=10, t=30, b=20),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
             )
-            st.plotly_chart(fig_spread, use_container_width=True)
+            st.plotly_chart(fig_spread, width="stretch")
 
         with sp_col2:
             st.markdown("##### Spread Distribution")
@@ -303,7 +303,7 @@ with st.container(border=True):
                 xaxis_title="Spread (USD/bbl)", yaxis_title="Trading Days",
                 height=300, margin=dict(l=10, r=10, t=30, b=20),
             )
-            st.plotly_chart(fig_dist, use_container_width=True)
+            st.plotly_chart(fig_dist, width="stretch")
 
             # Interpretation
             percentile = float((spread_filtered < spread_now).mean() * 100)
@@ -326,52 +326,107 @@ with st.container(border=True):
                 )
             st.info(spread_msg)
 
-# ── Realized Volatility ────────────────────────────────────────────────────────
+# ── Price vs 12-Month MA ───────────────────────────────────────────────────────
 st.markdown("---")
 with st.container(border=True):
-    st.markdown("### 📉 Realized Volatility (21-Day Rolling, Annualized)")
+    st.markdown("### 📊 Price vs 12-Month Moving Average")
     st.markdown(
-        "Rolling volatility measures how violently prices are moving. It is computed as the 21-day standard "
-        "deviation of daily log returns, scaled to an annualized figure. **Spikes signal market stress** — "
-        "they coincide with COVID, the Russian invasion, and OPEC+ surprise announcements. "
-        "High oil volatility typically feeds into headline inflation and corporate margin uncertainty across the entire economy."
+        "Shows how far the current price sits above or below its **12-month (252-day) moving average**, "
+        "expressed as a percentage deviation. "
+        "The **+20% / −20% bands** act as mean-reversion thresholds: "
+        "historically, sustained moves beyond these levels signal either a major supply shock (spikes above) "
+        "or a demand collapse / over-supply regime (drops below), and tend to precede corrective moves back toward the MA. "
+        "The MA itself is the trend anchor — when price crosses it from below it is a bullish momentum signal, and vice-versa."
     )
 
-    fig_vol = go.Figure()
+    smooth_deviation = st.toggle("Smooth series (3-month rolling avg)", value=False)
+
+    fig_ma = go.Figure()
 
     for bm in BENCHMARKS:
         bm_data = df[df["benchmark"] == bm].sort_values("Date").reset_index(drop=True)
-        returns = bm_data["Close"].pct_change()
-        vol = returns.rolling(21).std() * (252 ** 0.5) * 100  # annualized %
+        ma252 = bm_data["Close"].rolling(252, min_periods=126).mean()
+        deviation = ((bm_data["Close"] - ma252) / ma252 * 100).round(2)
+        if smooth_deviation:
+            deviation = deviation.rolling(63, min_periods=1).mean().round(2)
 
         mask = bm_data["Date"] >= start_date
-        fig_vol.add_trace(go.Scatter(
+
+        # Green fill when price is above MA, red fill when below
+        fig_ma.add_trace(go.Scatter(
             x=bm_data.loc[mask, "Date"],
-            y=vol[mask],
+            y=deviation[mask].clip(lower=0),
+            fill="tozeroy",
+            fillcolor="rgba(0, 204, 150, 0.15)",
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
+        fig_ma.add_trace(go.Scatter(
+            x=bm_data.loc[mask, "Date"],
+            y=deviation[mask].clip(upper=0),
+            fill="tozeroy",
+            fillcolor="rgba(239, 85, 59, 0.15)",
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
+        # Deviation line
+        fig_ma.add_trace(go.Scatter(
+            x=bm_data.loc[mask, "Date"],
+            y=deviation[mask],
             name=BENCHMARK_LABELS[bm],
             line=dict(color=BENCHMARK_COLORS[bm], width=2),
-            fill="tozeroy",
-            fillcolor=BENCHMARK_COLORS[bm].replace(")", ", 0.08)").replace("rgb", "rgba") if "rgb" in BENCHMARK_COLORS[bm] else None,
             hovertemplate=(
                 f"<b>{BENCHMARK_LABELS[bm]}</b><br>"
                 "Date: %{x|%d %b %Y}<br>"
-                "Vol: %{y:.1f}%<extra></extra>"
+                "Deviation: %{y:+.1f}%<extra></extra>"
             ),
         ))
 
-    # Threshold band: >50% is historically elevated
-    fig_vol.add_hline(
-        y=50, line_dash="dot", line_color="#EF553B", opacity=0.6,
-        annotation_text="Historically elevated (50%)",
-        annotation_position="right",
-        annotation_font_size=10,
-        annotation_font_color="#EF553B",
+    # Zero line (price = MA)
+    fig_ma.add_hline(y=0, line_dash="solid", line_color="gray", opacity=0.5)
+
+    # +20% threshold
+    fig_ma.add_hline(
+        y=20, line_dash="dash", line_color="rgba(0,204,150,0.8)", line_width=1.5,
+        annotation_text="+20% — extended above trend",
+        annotation_position="top right",
+        annotation_font_size=11,
+        annotation_font_color="rgba(0,180,130,1)",
     )
-    fig_vol.update_layout(
-        yaxis_title="Annualized Volatility (%)",
+    # −20% threshold
+    fig_ma.add_hline(
+        y=-20, line_dash="dash", line_color="rgba(239,85,59,0.8)", line_width=1.5,
+        annotation_text="−20% — extended below trend",
+        annotation_position="bottom right",
+        annotation_font_size=11,
+        annotation_font_color="rgba(239,85,59,1)",
+    )
+
+    fig_ma.update_layout(
+        yaxis_title="Deviation from 12M MA (%)",
+        yaxis_ticksuffix="%",
         hovermode="x unified",
-        height=280,
+        height=340,
         margin=dict(l=10, r=10, t=20, b=20),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig_vol, use_container_width=True)
+    st.plotly_chart(fig_ma, width="stretch")
+
+    # Live interpretation
+    interp_cols = st.columns(len(BENCHMARKS))
+    for i, bm in enumerate(BENCHMARKS):
+        bm_data = df[df["benchmark"] == bm].sort_values("Date").reset_index(drop=True)
+        ma252 = bm_data["Close"].rolling(252, min_periods=126).mean()
+        deviation = ((bm_data["Close"] - ma252) / ma252 * 100)
+        dev_now = deviation.dropna().iloc[-1]
+        with interp_cols[i]:
+            if dev_now > 20:
+                st.warning(f"**{BENCHMARK_LABELS[bm]}**: {dev_now:+.1f}% above MA — extended, watch for reversal.")
+            elif dev_now < -20:
+                st.error(f"**{BENCHMARK_LABELS[bm]}**: {dev_now:+.1f}% below MA — deeply oversold.")
+            elif dev_now > 0:
+                st.success(f"**{BENCHMARK_LABELS[bm]}**: {dev_now:+.1f}% — above trend, momentum positive.")
+            else:
+                st.info(f"**{BENCHMARK_LABELS[bm]}**: {dev_now:+.1f}% — below trend, momentum negative.")
