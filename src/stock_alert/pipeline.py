@@ -61,5 +61,3 @@ class FeatureService:
             logger.info(f"Master table saved to {output_path}")
         except Exception as e:
             raise RuntimeError(f"Feature generation failed: {e}") from e
-        
-

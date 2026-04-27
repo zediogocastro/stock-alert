@@ -15,6 +15,7 @@ TENORS = ["1M", "3M", "6M", "12M"]
 TENOR_LABELS = {"1M": "1-Month", "3M": "3-Month", "6M": "6-Month", "12M": "12-Month"}
 TENOR_COLORS = {"1M": "#636EFA", "3M": "#EF553B", "6M": "#00CC96", "12M": "#AB63FA"}
 
+
 # ── Data ──────────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data() -> pd.DataFrame:
@@ -39,7 +40,9 @@ for i, tenor in enumerate(TENORS):
     tenor_df = df[df["tenor"] == tenor].sort_values("Date")
     current = tenor_df.iloc[-1]
     prev_m = tenor_df.iloc[-2] if len(tenor_df) >= 2 else current
-    year_ago_candidates = tenor_df[tenor_df["Date"] <= current["Date"] - pd.DateOffset(months=12)]
+    year_ago_candidates = tenor_df[
+        tenor_df["Date"] <= current["Date"] - pd.DateOffset(months=12)
+    ]
     year_ago = year_ago_candidates.iloc[-1] if not year_ago_candidates.empty else None
 
     mom = current["rate"] - prev_m["rate"]
@@ -116,9 +119,11 @@ with col_right:
         if show_regimes:
             # Negative rates era (ECB deposit rate went negative in Jun 2014, Euribor followed ~mid 2015)
             fig_hist.add_vrect(
-                x0="2015-01-01", x1="2022-06-01",
+                x0="2015-01-01",
+                x1="2022-06-01",
                 fillcolor="rgba(239, 85, 59, 0.07)",
-                layer="below", line_width=0,
+                layer="below",
+                line_width=0,
                 annotation_text="Negative rate era",
                 annotation_position="top left",
                 annotation_font_size=11,
@@ -126,9 +131,11 @@ with col_right:
             )
             # ECB hiking cycle
             fig_hist.add_vrect(
-                x0="2022-07-01", x1=latest_date.strftime("%Y-%m-%d"),
+                x0="2022-07-01",
+                x1=latest_date.strftime("%Y-%m-%d"),
                 fillcolor="rgba(255, 200, 0, 0.09)",
-                layer="below", line_width=0,
+                layer="below",
+                line_width=0,
                 annotation_text="ECB hiking cycle",
                 annotation_position="top left",
                 annotation_font_size=11,
@@ -137,27 +144,35 @@ with col_right:
 
         for tenor in selected_tenors:
             t_data = df_filtered[df_filtered["tenor"] == tenor].sort_values("Date")
-            fig_hist.add_trace(go.Scatter(
-                x=t_data["Date"],
-                y=t_data["rate"],
-                name=f"EURIBOR {tenor}",
-                line=dict(color=TENOR_COLORS[tenor], width=2),
-                mode="lines",
-                hovertemplate=(
-                    f"<b>EURIBOR {tenor}</b><br>"
-                    "Date: %{x|%b %Y}<br>"
-                    "Rate: %{y:.3f}%<extra></extra>"
-                ),
-            ))
+            fig_hist.add_trace(
+                go.Scatter(
+                    x=t_data["Date"],
+                    y=t_data["rate"],
+                    name=f"EURIBOR {tenor}",
+                    line=dict(color=TENOR_COLORS[tenor], width=2),
+                    mode="lines",
+                    hovertemplate=(
+                        f"<b>EURIBOR {tenor}</b><br>"
+                        "Date: %{x|%b %Y}<br>"
+                        "Rate: %{y:.3f}%<extra></extra>"
+                    ),
+                )
+            )
 
         fig_hist.add_hline(
-            y=0, line_dash="dot", line_color="gray",
-            opacity=0.7, annotation_text="0%", annotation_position="right",
+            y=0,
+            line_dash="dot",
+            line_color="gray",
+            opacity=0.7,
+            annotation_text="0%",
+            annotation_position="right",
         )
         fig_hist.update_layout(
             yaxis_title="Rate (%)",
             hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            ),
             height=460,
             margin=dict(l=10, r=10, t=40, b=20),
         )
@@ -184,8 +199,7 @@ with st.container(border=True):
 
         one_year_ago = latest_date - pd.DateOffset(years=1)
         current_rates = {
-            t: df[df["tenor"] == t].sort_values("Date").iloc[-1]["rate"]
-            for t in TENORS
+            t: df[df["tenor"] == t].sort_values("Date").iloc[-1]["rate"] for t in TENORS
         }
         year_ago_rates = {}
         for t in TENORS:
@@ -194,22 +208,26 @@ with st.container(border=True):
             year_ago_rates[t] = m.iloc[-1]["rate"] if not m.empty else None
 
         fig_ts = go.Figure()
-        fig_ts.add_trace(go.Scatter(
-            x=TENORS,
-            y=[current_rates[t] for t in TENORS],
-            name=f"Now ({latest_date.strftime('%b %Y')})",
-            mode="lines+markers",
-            line=dict(color="#636EFA", width=3),
-            marker=dict(size=12, symbol="circle"),
-        ))
-        fig_ts.add_trace(go.Scatter(
-            x=TENORS,
-            y=[year_ago_rates[t] for t in TENORS],
-            name=f"1Y ago ({one_year_ago.strftime('%b %Y')})",
-            mode="lines+markers",
-            line=dict(color="#EF553B", dash="dash", width=2),
-            marker=dict(size=9, symbol="diamond"),
-        ))
+        fig_ts.add_trace(
+            go.Scatter(
+                x=TENORS,
+                y=[current_rates[t] for t in TENORS],
+                name=f"Now ({latest_date.strftime('%b %Y')})",
+                mode="lines+markers",
+                line=dict(color="#636EFA", width=3),
+                marker=dict(size=12, symbol="circle"),
+            )
+        )
+        fig_ts.add_trace(
+            go.Scatter(
+                x=TENORS,
+                y=[year_ago_rates[t] for t in TENORS],
+                name=f"1Y ago ({one_year_ago.strftime('%b %Y')})",
+                mode="lines+markers",
+                line=dict(color="#EF553B", dash="dash", width=2),
+                marker=dict(size=9, symbol="diamond"),
+            )
+        )
         fig_ts.update_layout(
             yaxis_title="Rate (%)",
             xaxis_title="Maturity",
@@ -231,39 +249,47 @@ with st.container(border=True):
 
     with ts_col2:
         st.markdown("##### 12M — 3M Spread (Curve Steepness)")
-        st.caption("Positive = normal · Negative = inverted · Reflects market expectations for future ECB policy rates.")
+        st.caption(
+            "Positive = normal · Negative = inverted · Reflects market expectations for future ECB policy rates."
+        )
 
         spread_series = spread_filtered["12M-3M"]
         fig_spread = go.Figure()
 
         # Green fill for positive spread
-        fig_spread.add_trace(go.Scatter(
-            x=spread_series.index,
-            y=spread_series.clip(lower=0),
-            fill="tozeroy",
-            fillcolor="rgba(0, 204, 150, 0.25)",
-            line=dict(color="rgba(0,0,0,0)"),
-            showlegend=False,
-            hoverinfo="skip",
-        ))
+        fig_spread.add_trace(
+            go.Scatter(
+                x=spread_series.index,
+                y=spread_series.clip(lower=0),
+                fill="tozeroy",
+                fillcolor="rgba(0, 204, 150, 0.25)",
+                line=dict(color="rgba(0,0,0,0)"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
         # Red fill for negative spread
-        fig_spread.add_trace(go.Scatter(
-            x=spread_series.index,
-            y=spread_series.clip(upper=0),
-            fill="tozeroy",
-            fillcolor="rgba(239, 85, 59, 0.25)",
-            line=dict(color="rgba(0,0,0,0)"),
-            showlegend=False,
-            hoverinfo="skip",
-        ))
+        fig_spread.add_trace(
+            go.Scatter(
+                x=spread_series.index,
+                y=spread_series.clip(upper=0),
+                fill="tozeroy",
+                fillcolor="rgba(239, 85, 59, 0.25)",
+                line=dict(color="rgba(0,0,0,0)"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
         # Spread line
-        fig_spread.add_trace(go.Scatter(
-            x=spread_series.index,
-            y=spread_series,
-            name="12M − 3M",
-            line=dict(color="#AB63FA", width=2),
-            hovertemplate="Date: %{x|%b %Y}<br>Spread: %{y:.3f} pp<extra></extra>",
-        ))
+        fig_spread.add_trace(
+            go.Scatter(
+                x=spread_series.index,
+                y=spread_series,
+                name="12M − 3M",
+                line=dict(color="#AB63FA", width=2),
+                hovertemplate="Date: %{x|%b %Y}<br>Spread: %{y:.3f} pp<extra></extra>",
+            )
+        )
         fig_spread.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.8)
         fig_spread.update_layout(
             yaxis_title="Spread (pp)",
@@ -292,27 +318,41 @@ with st.container(border=True):
     heat_data = tenor_series[tenor_series["year"].isin(recent_years)]
     pivot = heat_data.pivot(index="year", columns="month", values="change_bp")
 
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    month_names = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
     pivot.columns = [month_names[m - 1] for m in pivot.columns]
 
     valid = pivot.values[~pd.isna(pivot.values)]
     max_abs = max(abs(valid).max(), 1) if len(valid) > 0 else 1
 
-    fig_heat = go.Figure(go.Heatmap(
-        z=pivot.values,
-        x=pivot.columns.tolist(),
-        y=[str(y) for y in pivot.index.tolist()],
-        colorscale="RdYlGn",        # green = fell, red = rose
-        zmid=0,
-        zmin=-max_abs,
-        zmax=max_abs,
-        text=pivot.round(1).values,
-        texttemplate="%{text}",
-        textfont=dict(size=11),
-        hovertemplate="Month: %{x}<br>Year: %{y}<br>Change: %{z:.1f} bp<extra></extra>",
-        colorbar=dict(title="bp"),
-    ))
+    fig_heat = go.Figure(
+        go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns.tolist(),
+            y=[str(y) for y in pivot.index.tolist()],
+            colorscale="RdYlGn",  # green = fell, red = rose
+            zmid=0,
+            zmin=-max_abs,
+            zmax=max_abs,
+            text=pivot.round(1).values,
+            texttemplate="%{text}",
+            textfont=dict(size=11),
+            hovertemplate="Month: %{x}<br>Year: %{y}<br>Change: %{z:.1f} bp<extra></extra>",
+            colorbar=dict(title="bp"),
+        )
+    )
     fig_heat.update_layout(
         yaxis=dict(autorange="reversed", type="category"),
         xaxis_title="Month",

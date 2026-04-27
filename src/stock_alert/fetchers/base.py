@@ -11,6 +11,7 @@ class BaseFetcher(ABC):
     Subclasses must define SUBFOLDER (str) to specify the ingestion subdirectory.
     Override BASE_CACHE_DIR at the class level to change the root cache directory.
     """
+
     SUBFOLDER: str
     BASE_CACHE_DIR: str = "data/ingested"
 

@@ -27,6 +27,7 @@ class EuriborFetcher(BaseFetcher):
         6M  → EURIBOR6MD_  (6-month rate)
         12M → EURIBOR1YD_  (12-month / 1-year rate)
     """
+
     SUBFOLDER = "euribor"
 
     _ECB_BASE_URL = "https://data-api.ecb.europa.eu/service/data/FM"
@@ -44,7 +45,9 @@ class EuriborFetcher(BaseFetcher):
         self.tenors = tenors or sorted(valid_tenors)
         invalid = set(self.tenors) - valid_tenors
         if invalid:
-            raise ValueError(f"Invalid tenors: {invalid}. Valid options: {sorted(valid_tenors)}")
+            raise ValueError(
+                f"Invalid tenors: {invalid}. Valid options: {sorted(valid_tenors)}"
+            )
 
     def _build_url(self) -> str:
         series_ids = "+".join(self._TENOR_SERIES[t] for t in self.tenors)
@@ -80,7 +83,9 @@ class EuriborFetcher(BaseFetcher):
         df["rate"] = pd.to_numeric(df["rate"], errors="coerce")
         df = df.drop(columns=["PROVIDER_FM_ID"]).reset_index(drop=True)
 
-        logger.info(f"Fetched Euribor data: {len(df)} rows for {len(self.tenors)} tenors")
+        logger.info(
+            f"Fetched Euribor data: {len(df)} rows for {len(self.tenors)} tenors"
+        )
 
         self._write_data(df)
         return df

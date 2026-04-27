@@ -19,6 +19,7 @@ _LOG_COLORS = {
 
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
+
 def _get_caller_module_name() -> str:
     """Determine the name of the module that called the logger.
 
@@ -33,20 +34,21 @@ def _get_caller_module_name() -> str:
             return module.__name__
     return __name__
 
+
 def _setup_logger(name: str) -> logging.Logger:
     """Create and configure a logger instance with standard formatting.
-    
+
     Args:
         logger_name (str): The name for the logger,i.e. the fully qualified module name
                           This name appears in log messages to identify the source.
-    
+
     Returns:
         logging.Logger: A configured logger instance with:
             - Log level: INFO (shows INFO, WARNING, ERROR, CRITICAL messages)
             - Handler: StreamHandler (outputs to standard error stream)
             - Formatter: ColoredFormatter with standard log format
             - Color mapping: Severity-based colors for terminal output
-    
+
     Side Effects:
         - Creates a new logger if one with the given name doesn't exist
         - Attaches a StreamHandler and ColoredFormatter if not already present
@@ -65,7 +67,8 @@ def _setup_logger(name: str) -> logging.Logger:
         log.addHandler(handler)
     return log
 
-class _LoggerProxy():
+
+class _LoggerProxy:
 
     def __getattr__(self, name: str):
         caller_module = _get_caller_module_name()
