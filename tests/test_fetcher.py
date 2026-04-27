@@ -1,10 +1,16 @@
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
-from stock_alert.fetchers import BaseFetcher, YFinanceFetcher, EuriborFetcher, OilFetcher
+from stock_alert.fetchers import (
+    BaseFetcher,
+    YFinanceFetcher,
+    EuriborFetcher,
+    OilFetcher,
+)
 
 
 # ── BaseFetcher ──────────────────────────────────────────────
+
 
 class DummyFetcher(BaseFetcher):
     SUBFOLDER = "dummy"
@@ -37,12 +43,16 @@ def test_base_fetcher_defaults_to_base_cache_dir():
 
 # ── YFinanceFetcher ──────────────────────────────────────────
 
+
 @patch("stock_alert.fetchers.yfinance.yf.Ticker")
 def test_yfinance_fetcher_combines_identifiers(mock_ticker_cls, tmp_path):
-    mock_history = pd.DataFrame({
-        "Close": [100.0, 101.0],
-        "Volume": [1000, 1100],
-    }, index=pd.date_range("2025-01-01", periods=2))
+    mock_history = pd.DataFrame(
+        {
+            "Close": [100.0, 101.0],
+            "Volume": [1000, 1100],
+        },
+        index=pd.date_range("2025-01-01", periods=2),
+    )
 
     mock_ticker = MagicMock()
     mock_ticker.history.side_effect = lambda **kw: mock_history.copy()
@@ -70,6 +80,7 @@ def test_yfinance_fetcher_raises_when_all_fail(mock_ticker_cls):
 
 
 # ── EuriborFetcher ───────────────────────────────────────────
+
 
 def test_euribor_fetcher_invalid_tenor():
     with pytest.raises(ValueError, match="Invalid tenors"):
@@ -113,6 +124,7 @@ def test_euribor_fetcher_parses_ecb_response(mock_urlopen, tmp_path):
 
 # ── OilFetcher ───────────────────────────────────────────────
 
+
 def test_oil_fetcher_invalid_benchmark():
     with pytest.raises(ValueError, match="Invalid benchmarks"):
         OilFetcher(benchmarks=["OPEC"])
@@ -126,7 +138,11 @@ def test_oil_fetcher_defaults_to_all_benchmarks():
 def _make_oil_history(tz=None) -> pd.DataFrame:
     idx = pd.date_range("2025-01-01", periods=3, name="Date", tz=tz)
     return pd.DataFrame(
-        {"Open": [75.0, 76.0, 77.0], "Close": [76.0, 77.0, 78.0], "Volume": [100, 110, 120]},
+        {
+            "Open": [75.0, 76.0, 77.0],
+            "Close": [76.0, 77.0, 78.0],
+            "Volume": [100, 110, 120],
+        },
         index=idx,
     )
 
@@ -161,7 +177,9 @@ def test_oil_fetcher_raises_when_all_fail(mock_ticker_cls):
 @patch("stock_alert.fetchers.oil.yf.Ticker")
 def test_oil_fetcher_strips_timezone(mock_ticker_cls, tmp_path):
     mock_ticker = MagicMock()
-    mock_ticker.history.side_effect = lambda **kw: _make_oil_history(tz="America/New_York")
+    mock_ticker.history.side_effect = lambda **kw: _make_oil_history(
+        tz="America/New_York"
+    )
     mock_ticker_cls.return_value = mock_ticker
 
     fetcher = OilFetcher(benchmarks=["BRENT"], period="1y")

@@ -7,6 +7,7 @@ from .base import BaseFetcher
 
 class YFinanceFetcher(BaseFetcher):
     """Fetcher to retrieve stock data from Yahoo Finance"""
+
     SUBFOLDER = "stocks"
 
     def __init__(self, identifiers: list[str], period: str = "2y") -> None:
@@ -42,7 +43,9 @@ class YFinanceFetcher(BaseFetcher):
         combined_df = pd.concat(all_data, ignore_index=False)
         combined_df = combined_df.reset_index()
 
-        logger.info(f"Combined data: {len(combined_df)} rows from {len(all_data)} assets")
+        logger.info(
+            f"Combined data: {len(combined_df)} rows from {len(all_data)} assets"
+        )
 
         # Write data
         self._write_data(data=combined_df)

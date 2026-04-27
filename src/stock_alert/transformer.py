@@ -1,19 +1,23 @@
 from typing import Protocol
 import pandas as pd
 
+
 class Transformer(Protocol):
     """Protocol for data transformers"""
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        ...
+
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame: ...
 class CreateMovingAverage:
     """Transformer that creates a Moving Average of a certain column
-    
+
     Args:
         window_size: Size of the rolling window
         column: Column name to calculate SMA on
-        group_by: Optional column to group by 
+        group_by: Optional column to group by
     """
-    def __init__(self, window_size: int, column: str, group_by: str | None = None) -> None:
+
+    def __init__(
+        self, window_size: int, column: str, group_by: str | None = None
+    ) -> None:
         self.window_size = window_size
         self.column = column
         self.group_by = group_by
@@ -25,11 +29,11 @@ class CreateMovingAverage:
 
         # Calculate SMA wit optional grouping
         if self.group_by and self.group_by in df.columns:
-            df[ma_col_name] = (df
-                                .groupby(self.group_by)[self.column]
-                                .rolling(window=self.window_size)
-                                .mean()
-                            )
+            df[ma_col_name] = (
+                df.groupby(self.group_by)[self.column]
+                .rolling(window=self.window_size)
+                .mean()
+            )
         else:
             df[ma_col_name] = df[self.column].rolling(window=self.window_size).mean()
 

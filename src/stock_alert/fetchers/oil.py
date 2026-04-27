@@ -21,6 +21,7 @@ class OilFetcher(BaseFetcher):
 
     Both are quoted in USD per barrel on a daily basis.
     """
+
     SUBFOLDER = "oil"
 
     _BENCHMARKS: dict[str, str] = {
