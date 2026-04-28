@@ -1,6 +1,7 @@
 from stock_alert import (
     YFinanceFetcher,
     EuriborFetcher,
+    INEPortugalFetcher,
     InflationFetcher,
     OilFetcher,
     EUFuelFetcher,
@@ -22,6 +23,7 @@ if __name__ == "__main__":
             OilFetcher(period=PERIOD),
             EUFuelFetcher(),
             InflationFetcher(),
+            INEPortugalFetcher(),
         ]
     ).run()
     logger.info("✅ Fetch completed!")
