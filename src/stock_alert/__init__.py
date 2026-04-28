@@ -1,6 +1,7 @@
 from .fetchers import (
     BaseFetcher,
     EUFuelFetcher,
+    InflationFetcher,
     YFinanceFetcher,
     EuriborFetcher,
     OilFetcher,
@@ -13,6 +14,7 @@ __version__ = "0.1.0"
 __all__ = [
     "BaseFetcher",
     "EUFuelFetcher",
+    "InflationFetcher",
     "YFinanceFetcher",
     "EuriborFetcher",
     "OilFetcher",
