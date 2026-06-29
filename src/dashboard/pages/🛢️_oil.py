@@ -666,10 +666,11 @@ else:
                     )
 
     # ── Tabs ───────────────────────────────────────────────────────────────────
-    tab_hist, tab_oil, tab_tax, tab_corr = st.tabs(
+    tab_hist, tab_oil, tab_passthrough, tab_tax, tab_corr = st.tabs(
         [
             "📈 Price History",
             "🛢️ Oil vs Fuel",
+            "⚡ Pass-Through Rate",
             "🧾 Tax Wedge",
             "🔗 Rolling Correlation",
         ]
@@ -782,6 +783,151 @@ else:
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
         st.plotly_chart(fig_norm, width="stretch")
+
+    with tab_passthrough:
+        st.markdown(
+            "The **pass-through rate (β)** measures how much of a crude-oil price change "
+            "is transmitted to consumer fuel prices. "
+            "β ≈ **1.0** = full pass-through (every 1% rise in Brent → 1% rise in pump price); "
+            "β < 1 = buffering by taxes, subsidies or refinery-margin absorption; "
+            "β > 1 = amplification (FX effects, tight refinery capacity, or margin expansion).\n\n"
+            "Computed as the rolling 52-week OLS slope (β) from regressing weekly **% changes** in "
+            "fuel price on weekly % changes in Brent crude. Unlike correlation, β captures the "
+            "**magnitude** of transmission — not just direction."
+        )
+
+        _brent_pt = (
+            df[df["benchmark"] == "BRENT"]
+            .set_index("Date")["Close"]
+            .resample("W-MON")
+            .mean()
+        )
+
+        pt_col_chart, pt_col_scatter = st.columns([0.62, 0.38])
+
+        with pt_col_chart:
+            fig_pt = go.Figure()
+            for code in display_codes:
+                _fseries_pt = fuel_df[
+                    (fuel_df["country_code"] == code)
+                    & (fuel_df["fuel_type"] == fuel_type_sel)
+                    & (fuel_df["price_type"] == price_type_sel)
+                ].set_index("Date")["price"]
+
+                _joined_pt = pd.concat([_brent_pt, _fseries_pt], axis=1, join="inner")
+                _joined_pt.columns = ["oil", "fuel"]
+                _joined_pt = _joined_pt[_joined_pt.index >= start_date].dropna()
+
+                if len(_joined_pt) < 26:
+                    continue
+
+                _oil_pct = _joined_pt["oil"].pct_change()
+                _fuel_pct = _joined_pt["fuel"].pct_change()
+                # Rolling OLS β = Cov(Δfuel%, Δoil%) / Var(Δoil%)
+                _rolling_beta = (
+                    _oil_pct.rolling(52, min_periods=26).cov(_fuel_pct)
+                    / _oil_pct.rolling(52, min_periods=26).var()
+                )
+                _rolling_beta = _rolling_beta.dropna()
+                name = _fuel_country_name.get(code, code)
+                fig_pt.add_trace(
+                    go.Scatter(
+                        x=_rolling_beta.index,
+                        y=_rolling_beta.round(3),
+                        name=name,
+                        line=dict(
+                            color=_color_map[code],
+                            width=1.5,
+                            dash="dash" if code in ("EU", "EUR") else "solid",
+                        ),
+                        mode="lines",
+                        hovertemplate=(
+                            f"<b>{name}</b><br>%{{x|%d %b %Y}}<br>β: %{{y:.2f}}<extra></extra>"
+                        ),
+                    )
+                )
+            fig_pt.add_hline(
+                y=1.0,
+                line_dash="dash",
+                line_color="rgba(0,204,150,0.7)",
+                line_width=1.5,
+                annotation_text="Full pass-through (β = 1)",
+                annotation_font_size=10,
+                annotation_font_color="rgba(0,204,150,1)",
+            )
+            fig_pt.add_hline(
+                y=0.5,
+                line_dash="dot",
+                line_color="rgba(255,165,0,0.5)",
+                line_width=1,
+                annotation_text="50% pass-through",
+                annotation_font_size=10,
+                annotation_font_color="rgba(255,165,0,0.9)",
+            )
+            fig_pt.add_hline(y=0.0, line_dash="dot", line_color="gray", opacity=0.4)
+            fig_pt.update_layout(
+                yaxis_title="Pass-through β (52-week rolling)",
+                hovermode="x unified",
+                height=420,
+                margin=dict(l=10, r=10, t=30, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+            )
+            st.plotly_chart(fig_pt, width="stretch")
+
+        with pt_col_scatter:
+            st.markdown("**Weekly Δ% scatter** — full selected period")
+            fig_sc = go.Figure()
+            _x_all: list[float] = []
+            for code in display_codes:
+                _fseries_sc = fuel_df[
+                    (fuel_df["country_code"] == code)
+                    & (fuel_df["fuel_type"] == fuel_type_sel)
+                    & (fuel_df["price_type"] == price_type_sel)
+                ].set_index("Date")["price"]
+
+                _joined_sc = pd.concat([_brent_pt, _fseries_sc], axis=1, join="inner")
+                _joined_sc.columns = ["oil", "fuel"]
+                _joined_sc = _joined_sc[_joined_sc.index >= start_date].dropna()
+                if len(_joined_sc) < 4:
+                    continue
+
+                _x_sc = (_joined_sc["oil"].pct_change().dropna() * 100).round(2)
+                _y_sc = (_joined_sc["fuel"].pct_change().dropna() * 100).round(2)
+                _x_all.extend(_x_sc.tolist())
+                name = _fuel_country_name.get(code, code)
+                fig_sc.add_trace(
+                    go.Scatter(
+                        x=_x_sc,
+                        y=_y_sc,
+                        name=name,
+                        mode="markers",
+                        marker=dict(color=_color_map[code], size=4, opacity=0.45),
+                        hovertemplate=(
+                            f"<b>{name}</b><br>Brent Δ%: %{{x:.1f}}%<br>"
+                            f"Fuel Δ%: %{{y:.1f}}%<extra></extra>"
+                        ),
+                    )
+                )
+            if _x_all:
+                _xy_lim = max(abs(min(_x_all)), abs(max(_x_all)), 5)
+                fig_sc.add_trace(
+                    go.Scatter(
+                        x=[-_xy_lim, _xy_lim],
+                        y=[-_xy_lim, _xy_lim],
+                        name="β = 1 (full)",
+                        mode="lines",
+                        line=dict(color="rgba(0,204,150,0.6)", dash="dash", width=1.5),
+                        showlegend=True,
+                    )
+                )
+            fig_sc.update_layout(
+                xaxis_title="Brent weekly Δ%",
+                yaxis_title="Fuel weekly Δ%",
+                height=420,
+                margin=dict(l=10, r=10, t=30, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, font=dict(size=9)),
+            )
+            st.plotly_chart(fig_sc, width="stretch")
 
     with tab_tax:
         st.markdown(
