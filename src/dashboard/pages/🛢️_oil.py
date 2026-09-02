@@ -527,6 +527,50 @@ def load_fuel_data() -> pd.DataFrame:
 
 fuel_df = load_fuel_data()
 
+
+@st.cache_data
+def load_inflation_data() -> pd.DataFrame:
+    try:
+        df_inf = pd.read_parquet("data/ingested/inflation/data.parquet")
+        df_inf["Date"] = pd.to_datetime(df_inf["Date"])
+        return df_inf.sort_values(["country_code", "Date"]).reset_index(drop=True)
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def compute_cpi_index_series(country_code: str) -> pd.Series:
+    inf_df = load_inflation_data()
+    if inf_df.empty:
+        return pd.Series(dtype=float)
+
+    sub = inf_df[inf_df["country_code"] == country_code].sort_values("Date").copy()
+    if sub.empty or len(sub) < 12:
+        sub = inf_df[inf_df["country_code"] == "U2"].sort_values("Date").copy()
+    if sub.empty:
+        sub = inf_df[inf_df["country_code"] == "EU"].sort_values("Date").copy()
+    if sub.empty:
+        return pd.Series(dtype=float)
+
+    all_dates = sorted(sub["Date"].unique())
+    cpi_map: dict[pd.Timestamp, float] = {}
+    for d in all_dates:
+        row = sub[sub["Date"] == d].iloc[0]
+        y, m = d.year, d.month
+        rate = float(row["inflation_rate"])
+        prev_d = pd.Timestamp(year=y - 1, month=m, day=1)
+        if prev_d in cpi_map:
+            cpi_map[d] = cpi_map[prev_d] * (1.0 + rate / 100.0)
+        else:
+            cpi_map[d] = 100.0
+
+    s = pd.Series(cpi_map).sort_index()
+    if len(s) > 0:
+        latest_val = s.iloc[-1]
+        s = (s / latest_val) * 100.0
+    return s
+
+
 _fuel_country_name: dict[str, str] = dict(
     zip(fuel_df["country_code"], fuel_df["country"])
 )
@@ -666,9 +710,10 @@ else:
                     )
 
     # ── Tabs ───────────────────────────────────────────────────────────────────
-    tab_hist, tab_oil, tab_passthrough, tab_tax, tab_corr = st.tabs(
+    tab_hist, tab_real, tab_oil, tab_passthrough, tab_tax, tab_corr = st.tabs(
         [
             "📈 Price History",
+            "💶 Inflation-Adjusted",
             "🛢️ Oil vs Fuel",
             "⚡ Pass-Through Rate",
             "🧾 Tax Wedge",
@@ -713,6 +758,161 @@ else:
             legend=dict(orientation="h", yanchor="bottom", y=1.02),
         )
         st.plotly_chart(fig_fuel_hist, width="stretch")
+
+    with tab_real:
+        st.markdown(
+            f"Real (inflation-adjusted) weekly **{_FUEL_LABEL[fuel_type_sel]}** prices "
+            f"({'pump price' if price_type_sel == 'with_tax' else 'pre-tax'}), expressed in "
+            "**constant latest-period EUR/litre**. "
+            "Historical prices are deflated using official Harmonised Consumer Price Index (HICP) "
+            "series from Eurostat & ECB, showing what fuel cost in terms of today's purchasing power."
+        )
+
+        real_view_mode = st.radio(
+            "View Mode",
+            ["Real Price (All Selected Countries)", "Nominal vs Real Comparison by Country"],
+            horizontal=True,
+            key="real_fuel_view_mode",
+        )
+
+        if real_view_mode == "Real Price (All Selected Countries)":
+            fig_real = go.Figure()
+            for code in display_codes:
+                cdf = fuel_filtered[fuel_filtered["country_code"] == code].sort_values("Date").copy()
+                if cdf.empty:
+                    continue
+                cpi_s = compute_cpi_index_series(code)
+                if cpi_s.empty:
+                    continue
+                cdf["month_date"] = cdf["Date"].dt.to_period("M").dt.to_timestamp()
+                cdf["cpi"] = cdf["month_date"].map(cpi_s).ffill().bfill()
+                cdf["real_price"] = (cdf["price"] * 100.0 / cdf["cpi"]).round(3)
+
+                name = _fuel_country_name.get(code, code)
+                fig_real.add_trace(
+                    go.Scatter(
+                        x=cdf["Date"],
+                        y=cdf["real_price"],
+                        name=name,
+                        line=dict(
+                            color=_color_map[code],
+                            width=2.5 if code in ("EU", "EUR") else 1.5,
+                            dash="dash" if code in ("EU", "EUR") else "solid",
+                        ),
+                        mode="lines",
+                        customdata=cdf[["price", "cpi"]].values,
+                        hovertemplate=(
+                            f"<b>{name}</b><br>"
+                            "Date: %{x|%d %b %Y}<br>"
+                            "Real Price (Today's €): <b>€%{y:.3f}/L</b><br>"
+                            "Nominal Price: €%{customdata[0]:.3f}/L<br>"
+                            "CPI Index (Today=100): %{customdata[1]:.1f}"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+
+            fig_real.update_layout(
+                yaxis_title="Constant EUR/litre (Today's Prices)",
+                hovermode="x unified",
+                height=420,
+                margin=dict(l=10, r=10, t=30, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+            )
+            st.plotly_chart(fig_real, width="stretch")
+            st.caption(
+                "💡 **Insight**: In real terms (adjusting for general inflation), fuel during previous historical peaks "
+                "(such as 2012 or 2022) often represented an even heavier purchasing-power burden than nominal charts suggest."
+            )
+
+        else:
+            compare_country = st.selectbox(
+                "Select Country for Nominal vs Real Comparison",
+                options=display_codes,
+                format_func=lambda x: f"{_fuel_country_name.get(x, x)} ({x})",
+                key="real_fuel_comp_country",
+            )
+            cdf = fuel_filtered[fuel_filtered["country_code"] == compare_country].sort_values("Date").copy()
+            if not cdf.empty:
+                cpi_s = compute_cpi_index_series(compare_country)
+                cdf["month_date"] = cdf["Date"].dt.to_period("M").dt.to_timestamp()
+                cdf["cpi"] = cdf["month_date"].map(cpi_s).ffill().bfill()
+                cdf["real_price"] = (cdf["price"] * 100.0 / cdf["cpi"]).round(3)
+                cname = _fuel_country_name.get(compare_country, compare_country)
+
+                fig_comp = go.Figure()
+                # Real trace
+                fig_comp.add_trace(
+                    go.Scatter(
+                        x=cdf["Date"],
+                        y=cdf["real_price"],
+                        name="Real Price (Inflation-Adjusted)",
+                        line=dict(color="#00CC96", width=2.5),
+                        mode="lines",
+                        hovertemplate="<b>Real Price</b><br>Date: %{x|%d %b %Y}<br>Real: €%{y:.3f}/L<extra></extra>",
+                    )
+                )
+                # Nominal trace
+                fig_comp.add_trace(
+                    go.Scatter(
+                        x=cdf["Date"],
+                        y=cdf["price"],
+                        name="Nominal Pump Price",
+                        line=dict(color="#EF553B", width=1.8, dash="dash"),
+                        mode="lines",
+                        hovertemplate="<b>Nominal Price</b><br>Date: %{x|%d %b %Y}<br>Nominal: €%{y:.3f}/L<extra></extra>",
+                    )
+                )
+                fig_comp.update_layout(
+                    title=f"{cname} — Real vs Nominal {_FUEL_LABEL[fuel_type_sel]} Price",
+                    yaxis_title="EUR/litre",
+                    hovermode="x unified",
+                    height=420,
+                    margin=dict(l=10, r=10, t=40, b=20),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                )
+                st.plotly_chart(fig_comp, width="stretch")
+
+                # Metrics
+                latest_row = cdf.iloc[-1]
+                oldest_row = cdf.iloc[0]
+                real_peak = cdf.loc[cdf["real_price"].idxmax()]
+                nom_peak = cdf.loc[cdf["price"].idxmax()]
+
+                rc1, rc2, rc3, rc4 = st.columns(4)
+                with rc1:
+                    with st.container(border=True):
+                        st.metric(
+                            "Latest Real Price",
+                            value=f"€{latest_row['real_price']:.3f}/L",
+                            delta=f"Nominal: €{latest_row['price']:.3f}/L",
+                            delta_color="off",
+                        )
+                with rc2:
+                    with st.container(border=True):
+                        st.metric(
+                            "All-Time Real Peak",
+                            value=f"€{real_peak['real_price']:.3f}/L",
+                            delta=f"{real_peak['Date'].strftime('%b %Y')}",
+                            delta_color="off",
+                        )
+                with rc3:
+                    with st.container(border=True):
+                        st.metric(
+                            "All-Time Nominal Peak",
+                            value=f"€{nom_peak['price']:.3f}/L",
+                            delta=f"{nom_peak['Date'].strftime('%b %Y')}",
+                            delta_color="off",
+                        )
+                with rc4:
+                    with st.container(border=True):
+                        cum_inflation = (100.0 / oldest_row["cpi"] - 1.0) * 100.0 if oldest_row["cpi"] else 0.0
+                        st.metric(
+                            "Cumulative CPI Change",
+                            value=f"{cum_inflation:+.1f}%",
+                            delta=f"Since {oldest_row['Date'].year}",
+                            delta_color="off",
+                        )
 
     with tab_oil:
         st.markdown(
