@@ -16,7 +16,6 @@ st.markdown(
     - **📈 Stock Analysis**: Peer comparison and technical analysis (price, RSI, normalized returns).
     - **📉 Euribor**: Live Euribor rates across all maturities, yield curve analysis, spread charts, and MoM change heatmap.
     - **🛢️ Crude Oil**: Brent and WTI price history, Brent–WTI spread analysis, and realized volatility — the key commodity to watch during geopolitical stress.
-    - **🌍 Global Inflation**: World choropleth map, country ranking, multi-economy trend chart, and annual heatmap for 47 economies (ECB + OECD).
-    - **🇵🇹 Portugal CPI**: Granular COICOP category breakdown of Portuguese consumer prices (INE data).
+    - **🌍 Global Inflation**: World choropleth map, country ranking, multi-economy trend chart, and annual heatmap for 50+ economies (Eurostat + ECB + OECD).
     """
 )

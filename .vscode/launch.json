@@ -6,6 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/fetch_data.py",
+            "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": true,
@@ -18,6 +19,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/scripts/generate_features.py",
+            "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": true,
@@ -30,7 +32,9 @@
             "type": "debugpy",
             "request": "launch",
             "module": "streamlit",
+            "python": "${command:python.interpreterPath}",
             "args": [
+
                 "run",
                 "src/dashboard/🏡_Home.py"
             ],

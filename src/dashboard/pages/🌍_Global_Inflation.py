@@ -7,9 +7,9 @@ st.set_page_config(layout="wide", page_title="Global Inflation", page_icon="🌍
 
 st.title("🌍 Global Inflation Monitor")
 st.markdown(
-    "Monthly **CPI/HICP year-on-year inflation rates** for 47 economies, sourced from "
-    "**ECB Statistical Data Warehouse** (EU/EEA countries) and **OECD Data Explorer** (non-EU members + G20 emerging). "
-    "ECB data takes precedence where coverage overlaps."
+    "Monthly **CPI/HICP year-on-year inflation rates** for 47+ economies, sourced from "
+    "**Eurostat & ECB** (EU/EEA countries) and **OECD Data Explorer** (non-EU members + G20 emerging). "
+    "Official Eurostat & ECB HICP data takes precedence for European coverage."
 )
 
 # ── ISO-2 → ISO-3 mapping (for Plotly choropleth) ────────────────────────────
@@ -25,6 +25,8 @@ ISO2_TO_ISO3: dict[str, str] = {
     "IS": "ISL", "IL": "ISR", "JP": "JPN", "KR": "KOR", "MX": "MEX",
     "NO": "NOR", "NZ": "NZL", "CH": "CHE", "TR": "TUR", "US": "USA",
     "BR": "BRA", "CN": "CHN", "IN": "IND", "ID": "IDN", "ZA": "ZAF",
+    # Other European
+    "AL": "ALB", "ME": "MNE", "MK": "MKD", "RS": "SRB", "XK": "XKX",
 }
 
 # Region groupings
@@ -39,6 +41,7 @@ REGION_GROUPS: dict[str, list[str]] = {
         "NO", "NZ", "CH", "TR", "US",
     ],
     "G20 Emerging": ["BR", "CN", "IN", "ID", "ZA"],
+    "Other Europe": ["AL", "ME", "MK", "RS", "XK"],
 }
 
 # Hero KPI countries: (country_code, display_label)
@@ -74,18 +77,31 @@ def load_data() -> pd.DataFrame:
 
 
 df = load_data()
-latest_date = df["Date"].max()
 all_countries_df = df[~df["country_code"].isin(["U2", "EU"])].copy()
 all_country_names = (
     all_countries_df[["country_code", "country_name"]]
     .drop_duplicates()
     .sort_values("country_name")
 )
-latest_df = df[df["Date"] == latest_date].copy()
+latest_df = (
+    df.sort_values(["country_code", "Date"])
+    .groupby("country_code", as_index=False)
+    .tail(1)
+    .reset_index(drop=True)
+)
+latest_date = latest_df["Date"].max()
+oldest_latest_date = latest_df["Date"].min()
 latest_individual = latest_df[~latest_df["country_code"].isin(["U2", "EU"])].copy()
 
 # ── KPI Hero Cards ────────────────────────────────────────────────────────────
-st.markdown(f"### 📌 Key Economies — {latest_date.strftime('%B %Y')}")
+st.markdown("### 📌 Key Economies — Latest Available")
+if oldest_latest_date < latest_date:
+    lagging_series = int((latest_df["Date"] < latest_date).sum())
+    st.caption(
+        f"Release window across series: **{oldest_latest_date.strftime('%b %Y')}** to "
+        f"**{latest_date.strftime('%b %Y')}** · "
+        f"{lagging_series} series are behind the newest release month."
+    )
 kpi_cols = st.columns(4)
 
 for i, (code, label) in enumerate(HERO_COUNTRIES):
@@ -123,7 +139,7 @@ with col_ctrl:
 
         region_choice = st.radio(
             "Region",
-            ["All", "EU Countries", "OECD Non-EU", "G20 Emerging"],
+            ["All", "EU Countries", "OECD Non-EU", "G20 Emerging", "Other Europe"],
             index=0,
         )
 
@@ -166,6 +182,7 @@ with col_ctrl:
         min_date = df["Date"].min()
         st.caption(
             f"From **{min_date.strftime('%b %Y')}** to **{latest_date.strftime('%b %Y')}**  \n"
+            f"Latest-by-country window: **{oldest_latest_date.strftime('%b %Y')}** to **{latest_date.strftime('%b %Y')}**  \n"
             f"{df['country_code'].nunique()} series · "
             f"{df['Date'].nunique()} months"
         )
@@ -180,9 +197,17 @@ else:
 with col_main:
     # ── World Choropleth ──────────────────────────────────────────────────────
     with st.container(border=True):
-        st.markdown(f"#### 🗺️ World Inflation Map — {latest_date.strftime('%B %Y')}")
+        if oldest_latest_date == latest_date:
+            map_title_suffix = latest_date.strftime('%B %Y')
+        else:
+            map_title_suffix = (
+                f"Latest by country ({oldest_latest_date.strftime('%b %Y')} to "
+                f"{latest_date.strftime('%b %Y')})"
+            )
+        st.markdown(f"#### 🗺️ World Inflation Map — {map_title_suffix}")
 
         map_df = latest_individual.copy()
+        map_df["period_label"] = map_df["Date"].dt.strftime("%b %Y")
         map_df["iso3"] = map_df["country_code"].map(ISO2_TO_ISO3)
         map_df = map_df.dropna(subset=["iso3", "inflation_rate"])
 
@@ -194,7 +219,7 @@ with col_main:
                 locations=map_df["iso3"],
                 z=map_df["inflation_rate"],
                 text=map_df["country_name"],
-                customdata=map_df[["source", "country_name"]],
+                customdata=map_df[["source", "country_name", "period_label"]],
                 colorscale="RdBu_r",
                 zmin=color_range[0],
                 zmax=color_range[1],
@@ -209,7 +234,7 @@ with col_main:
                     "<b>%{customdata[1]}</b><br>"
                     "Inflation: <b>%{z:.2f}%</b><br>"
                     "Source: %{customdata[0]}<br>"
-                    f"Period: {latest_date.strftime('%b %Y')}"
+                    "Period: %{customdata[2]}"
                     "<extra></extra>"
                 ),
             )
@@ -237,7 +262,14 @@ with col_main:
     # ── Ranking Bar Chart ─────────────────────────────────────────────────────
     st.markdown("---")
     with st.container(border=True):
-        st.markdown(f"#### 📊 Inflation Ranking — {latest_date.strftime('%B %Y')}")
+        if oldest_latest_date == latest_date:
+            rank_title_suffix = latest_date.strftime('%B %Y')
+        else:
+            rank_title_suffix = (
+                f"Latest by country ({oldest_latest_date.strftime('%b %Y')} to "
+                f"{latest_date.strftime('%b %Y')})"
+            )
+        st.markdown(f"#### 📊 Inflation Ranking — {rank_title_suffix}")
 
         region_filter_codes = (
             None if region_choice == "All"
@@ -312,7 +344,7 @@ with col_main:
 # ── Historical Trend Chart ────────────────────────────────────────────────────
 st.markdown("---")
 with st.container(border=True):
-    st.markdown("#### � Historical Trend")
+    st.markdown("#### 📈 Historical Trend")
 
     BAR_SOFT_LIMIT = 6  # grouped bars get cramped beyond this
 
@@ -458,7 +490,7 @@ with st.container(border=True):
 
 # ── Raw Data Expander ─────────────────────────────────────────────────────────
 st.markdown("---")
-with st.expander("🔍 Raw data — latest month"):
+with st.expander("🔍 Raw data — latest available per country"):
     show_df = (
         latest_df[["country_name", "country_code", "inflation_rate", "source", "Date"]]
         .sort_values("inflation_rate", ascending=False)
@@ -470,8 +502,9 @@ with st.expander("🔍 Raw data — latest month"):
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.caption(
-    f"Sources: **ECB Statistical Data Warehouse** (ICP dataset, HICP YoY%) · "
-    f"**OECD Data Explorer** (DSD_PRICES@DF_PRICES_ALL, CPI YoY%). "
-    f"Latest data: **{latest_date.strftime('%B %Y')}**. "
+    f"Sources: **Eurostat & ECB** (HICP YoY%) · "
+    f"**OECD Data Explorer** (CPI YoY%). "
+    f"Latest-by-country window: **{oldest_latest_date.strftime('%b %Y')}** to "
+    f"**{latest_date.strftime('%b %Y')}**. "
     "Run `scripts/fetch_data.py` to refresh."
 )
