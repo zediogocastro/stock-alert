@@ -41,6 +41,22 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "justMyCode": true
+        },
+        {
+            "name": "Full Pipeline (Fetch + Generate + Streamlit)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "python": "${command:python.interpreterPath}",
+            "args": [
+
+                "run",
+                "src/dashboard/🏡_Home.py"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "justMyCode": true,
+            "preLaunchTask": "Update Data Pipeline"
         }
     ]
 }
