@@ -1,5 +1,6 @@
 import json
 import ssl
+import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,52 @@ class INEPortugalFetcher(BaseFetcher):
         "?op=2&varcd=0014647&lang=EN"
     )
 
+    _MAX_ATTEMPTS = 4
+    _RETRY_DELAY_SECONDS = 2
+
+    def _fetch_payload(self) -> list:
+        """Fetch and parse the INE JSON payload, retrying on transient empty responses.
+
+        The INE BDportal API occasionally responds with HTTP 200 and an empty body
+        (no data) on the first request of a session, before the server-side session
+        cookie is established. Retrying with a fresh request reliably succeeds.
+        """
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        last_error: Exception | None = None
+
+        for attempt in range(1, self._MAX_ATTEMPTS + 1):
+            req = urllib.request.Request(
+                self._INE_URL,
+                headers={"Accept": "application/json", "User-Agent": "stock-alert/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=30, context=ssl_ctx) as response:
+                body = response.read()
+
+            if not body:
+                last_error = ValueError("INE API returned an empty response body")
+                logger.warning(
+                    f"Attempt {attempt}/{self._MAX_ATTEMPTS} got an empty response "
+                    "from INE API, retrying..."
+                )
+                if attempt < self._MAX_ATTEMPTS:
+                    time.sleep(self._RETRY_DELAY_SECONDS)
+                continue
+
+            try:
+                return json.loads(body)
+            except json.JSONDecodeError as e:
+                last_error = e
+                logger.warning(
+                    f"Attempt {attempt}/{self._MAX_ATTEMPTS} got invalid JSON from "
+                    f"INE API, retrying... ({e})"
+                )
+                if attempt < self._MAX_ATTEMPTS:
+                    time.sleep(self._RETRY_DELAY_SECONDS)
+
+        raise RuntimeError(
+            f"INE API did not return a valid response after {self._MAX_ATTEMPTS} attempts"
+        ) from last_error
+
     def fetch(self) -> pd.DataFrame:
         """Fetch the latest Portugal CPI data from INE and append it to the parquet store.
 
@@ -44,13 +91,7 @@ class INEPortugalFetcher(BaseFetcher):
         """
         logger.info("Fetching Portugal CPI data from INE BDportal API")
 
-        req = urllib.request.Request(
-            self._INE_URL,
-            headers={"Accept": "application/json", "User-Agent": "stock-alert/1.0"},
-        )
-        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
-        with urllib.request.urlopen(req, timeout=30, context=ssl_ctx) as response:
-            payload = json.loads(response.read())
+        payload = self._fetch_payload()
 
         indicator = payload[0]
         dados = indicator.get("Dados", {})
