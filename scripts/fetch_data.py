@@ -10,7 +10,7 @@ from stock_alert import (
 from common.logger import logger
 
 # ---------------------## Config ##---------------------#
-TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT", "PLTR", "NVDA"]
+TICKERS = ["AAPL", "AMZN", "TSLA", "MSFT", "PLTR", "NVDA", "^GSPC", "VUAA.DE", "VUAA.L"]
 PERIOD = "5y"
 # ---------------------## End ##------------------------#
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 st.set_page_config(layout="wide")
 
-st.title("📊 Stock Peer Analysis")
+st.title("📊 Stock Analysis")
 st.markdown("Easily compare stocks against others in their peer group.")
 
 
@@ -45,6 +45,7 @@ with col1:
             index=3,
             horizontal=True,
         )
+        show_baseline = st.checkbox("Show S&P 500 benchmark", value=True)
 
     # Filter data based on selections
     if not tickers:
@@ -83,6 +84,21 @@ with col1:
                 df_normalized["identifier"] == ticker, "Normalized Price"
             ] = (df_normalized["Close"] / base_price)
 
+    # Benchmark (^GSPC / S&P 500) is normalized separately from the selected tickers
+    baseline_normalized = pd.DataFrame()
+    if show_baseline and "^GSPC" in tickers:
+        show_baseline = False  # already shown as a regular peer, avoid duplicate line
+    if show_baseline and "^GSPC" in df["identifier"].unique():
+        baseline_df = df[
+            (df["identifier"] == "^GSPC")
+            & (df["Date"] >= start_date)
+            & (df["Date"] <= end_date)
+        ].copy()
+        if not baseline_df.empty:
+            base_price = baseline_df["Close"].iloc[0]
+            baseline_df["Normalized Price"] = baseline_df["Close"] / base_price
+            baseline_normalized = baseline_df
+
     with st.container(border=True):
         st.markdown("#### 🏆 Performance")
         if not df_normalized.empty:
@@ -99,11 +115,19 @@ with col1:
                 best_perf = (performance.iloc[0] - 1) * 100
                 worst_perf = (performance.iloc[-1] - 1) * 100
 
-                perf_col1, perf_col2 = st.columns(2)
-                with perf_col1:
+                perf_cols = st.columns(3 if not baseline_normalized.empty else 2)
+                with perf_cols[0]:
                     st.metric("Best stock", f"📈 {best_stock}", f"{best_perf:.2f}%")
-                with perf_col2:
+                with perf_cols[1]:
                     st.metric("Worst stock", f"📉 {worst_stock}", f"{worst_perf:.2f}%")
+                if not baseline_normalized.empty:
+                    benchmark_perf = (
+                        baseline_normalized["Normalized Price"].iloc[-1] - 1
+                    ) * 100
+                    with perf_cols[2]:
+                        st.metric(
+                            "Benchmark", "📊 S&P 500", f"{benchmark_perf:.2f}%"
+                        )
         else:
             st.info("Not enough data to calculate performance.")
 
@@ -111,7 +135,7 @@ with col1:
 # --- Right Column ---
 with col2:
     with st.container(border=True):
-        st.markdown("#### 📊 Peer Comparison")
+        st.markdown("#### 📊 Stocks vs. S&P 500 Benchmark")
         fig = go.Figure()
         for ticker in tickers:
             ticker_data = df_normalized[df_normalized["identifier"] == ticker]
@@ -124,16 +148,15 @@ with col2:
             )
 
         if not df_normalized.empty:
-            peer_average = df_normalized.groupby("Date")["Normalized Price"].mean()
-            peer_ma = peer_average.rolling(window=21, min_periods=1).mean()
-            fig.add_trace(
-                go.Scatter(
-                    x=peer_ma.index,
-                    y=peer_ma.values,
-                    name="21-Day Peer Average MA",
-                    line=dict(color="black", dash="dot"),
+            if not baseline_normalized.empty:
+                fig.add_trace(
+                    go.Scatter(
+                        x=baseline_normalized["Date"],
+                        y=baseline_normalized["Normalized Price"],
+                        name="S&P 500",
+                        line=dict(color="black", dash="dot"),
+                    )
                 )
-            )
 
             fig.update_layout(yaxis_title="Normalized Price")
             st.plotly_chart(fig)
