@@ -46,3 +46,41 @@ class MovingAverage(Feature):
         expr = expr.over(partition_by=self.group_by, order_by=self.sort_by)
 
         return expr.alias(self.name)
+
+
+class MovingAverageSpread(Feature):
+    """Gap between a fast and a slow Simple Moving Average.
+
+    Positive values mark a "golden cross" (fast above slow, bullish trend);
+    negative values mark a "death cross" (fast below slow, bearish trend).
+    Recomputes both rolling means from the raw price column directly since
+    FeatureEngine applies every feature in one batched pass and cannot chain
+    off another feature's output column.
+    """
+
+    def __init__(
+        self,
+        column: str,
+        fast_window: int,
+        slow_window: int,
+        sort_by: str,
+        group_by: str | None = None,
+    ) -> None:
+        self.column = column
+        self.fast_window = fast_window
+        self.slow_window = slow_window
+        self.sort_by = sort_by
+        self.group_by = group_by
+
+    @property
+    def name(self) -> str:
+        return f"sma_gap_{self.fast_window}_{self.slow_window}d"
+
+    def compute(self) -> pl.Expr:
+        price = pl.col(self.column)
+        fast = price.rolling_mean(window_size=self.fast_window)
+        slow = price.rolling_mean(window_size=self.slow_window)
+        expr = fast - slow
+        return expr.over(partition_by=self.group_by, order_by=self.sort_by).alias(
+            self.name
+        )

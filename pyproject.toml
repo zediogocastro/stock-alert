@@ -19,6 +19,7 @@ polars = "^1.37.1"
 streamlit = "^1.31.1"
 plotly = "^5.18.0"
 openpyxl = "^3.1.5"
+numpy = "^2.3.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.2"

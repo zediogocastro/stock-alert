@@ -1,6 +1,6 @@
 import polars as pl
 from polars.testing import assert_series_equal
-from stock_alert.features.moving_average import MovingAverage
+from stock_alert.features.moving_average import MovingAverage, MovingAverageSpread
 
 
 def test_moving_average_calculation():
@@ -36,4 +36,18 @@ def test_moving_average_with_groups():
 
     expected = pl.Series("sma_2d", [None, 15.0, None, 150.0])
 
+    assert_series_equal(result, expected)
+
+
+def test_moving_average_spread():
+    df = pl.DataFrame({"date": [1, 2, 3, 4], "price": [10.0, 20.0, 30.0, 40.0]})
+
+    # fast (window=1) is the price itself: [10, 20, 30, 40]
+    # slow (window=2): [None, 15, 25, 35]
+    spread = MovingAverageSpread(
+        column="price", fast_window=1, slow_window=2, sort_by="date"
+    )
+    result = df.select(spread.compute()).to_series()
+
+    expected = pl.Series("sma_gap_1_2d", [None, 5.0, 5.0, 5.0])
     assert_series_equal(result, expected)

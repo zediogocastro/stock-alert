@@ -117,3 +117,29 @@ class RelativeStrengthIndex(Feature):
         return rsi.over(partition_by=self.group_by, order_by=self.sort_by).alias(
             self.name
         )
+
+
+class Drawdown(Feature):
+    """Calculates percentage decline from the running all-time high.
+    Reveals Risk: How far below its historical peak is the price right now?
+    """
+
+    def __init__(
+        self, column: str, sort_by: str, group_by: str | None = None
+    ) -> None:
+        self.column = column
+        self.sort_by = sort_by
+        self.group_by = group_by
+
+    @property
+    def name(self) -> str:
+        return "drawdown_pct"
+
+    def compute(self) -> pl.Expr:
+        # (Current - Running Max) / Running Max, always <= 0
+        price = pl.col(self.column)
+        running_max = price.cum_max()
+        expr = (price - running_max) / running_max
+        return expr.over(partition_by=self.group_by, order_by=self.sort_by).alias(
+            self.name
+        )

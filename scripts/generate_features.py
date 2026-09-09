@@ -1,9 +1,10 @@
 from stock_alert import FeatureService
-from stock_alert.features import FeatureEngine, MovingAverage
+from stock_alert.features import FeatureEngine, MovingAverage, MovingAverageSpread
 from stock_alert.features.atomic_features import (
     Returns,
     Volatility,
     RelativeStrengthIndex,
+    Drawdown,
 )
 from common.logger import logger
 
@@ -25,7 +26,17 @@ if __name__ == "__main__":
                     column=COLUMN, window_days=21, sort_by=SORT_BY, group_by=IDENTIFIER
                 ),
                 MovingAverage(
+                    column=COLUMN, window_days=50, sort_by=SORT_BY, group_by=IDENTIFIER
+                ),
+                MovingAverage(
                     column=COLUMN, window_days=200, sort_by=SORT_BY, group_by=IDENTIFIER
+                ),
+                MovingAverageSpread(
+                    column=COLUMN,
+                    fast_window=50,
+                    slow_window=200,
+                    sort_by=SORT_BY,
+                    group_by=IDENTIFIER,
                 ),
                 Returns(column=COLUMN, n_days=1, sort_by=SORT_BY, group_by=IDENTIFIER),
                 Volatility(
@@ -37,6 +48,7 @@ if __name__ == "__main__":
                 RelativeStrengthIndex(
                     column=COLUMN, window_days=14, sort_by=SORT_BY, group_by=IDENTIFIER
                 ),
+                Drawdown(column=COLUMN, sort_by=SORT_BY, group_by=IDENTIFIER),
             ]
         ),
         ingested_data_path=INGESTED_STOCKS_PATH,

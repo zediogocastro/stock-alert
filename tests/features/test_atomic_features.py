@@ -7,6 +7,7 @@ from stock_alert.features.atomic_features import (
     Volatility,
     Lag,
     RelativeStrengthIndex,
+    Drawdown,
 )
 
 
@@ -64,3 +65,34 @@ def test_rsi_overbought():
     # Once the window is full (index 2 and 3), RSI should be 100
     assert result[2] == 100.0
     assert result[3] == 100.0
+
+
+def test_drawdown():
+    # Running max: [100, 110, 110, 110, 120]
+    df = pl.DataFrame(
+        {"date": [1, 2, 3, 4, 5], "price": [100.0, 110.0, 90.0, 95.0, 120.0]}
+    )
+    feature = Drawdown(column="price", sort_by="date")
+    result = df.select(feature.compute()).to_series()
+
+    assert result[0] == pytest.approx(0.0)
+    assert result[1] == pytest.approx(0.0)
+    assert result[2] == pytest.approx(-0.1818, abs=1e-3)
+    assert result[3] == pytest.approx(-0.1364, abs=1e-3)
+    assert result[4] == pytest.approx(0.0)
+
+
+def test_drawdown_with_groups(sample_data):
+    df = pl.DataFrame(
+        {
+            "symbol": ["A", "A", "A", "B", "B", "B"],
+            "date": [1, 2, 3, 1, 2, 3],
+            "price": [100.0, 50.0, 100.0, 200.0, 100.0, 300.0],
+        }
+    )
+    feature = Drawdown(column="price", sort_by="date", group_by="symbol")
+    result = df.select(feature.compute()).to_series()
+
+    # A: running max [100,100,100] -> [0, -0.5, 0]; B: running max [200,200,300] -> [0, -0.5, 0]
+    expected = pl.Series("drawdown_pct", [0.0, -0.5, 0.0, 0.0, -0.5, 0.0])
+    assert_series_equal(result, expected)

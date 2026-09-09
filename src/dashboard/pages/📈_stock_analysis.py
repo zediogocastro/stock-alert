@@ -287,3 +287,55 @@ with st.container(border=True):
                 st.plotly_chart(fig)
     else:
         st.info("Select tickers to see the analysis.")
+
+# --- S&P 500 vs SMA21 ---
+st.markdown("---")
+with st.container(border=True):
+    st.markdown("### 📉 S&P 500 vs. SMA21")
+    st.markdown(
+        """
+    Compares the S&P 500 price against its 21-day Simple Moving Average (SMA21), a short-term trend indicator.
+    Price crossing above the SMA21 can signal bullish momentum, while crossing below can signal bearish momentum.
+    """
+    )
+
+    sp500_variants = ["^GSPC", "VUAA.DE", "VUAA.L"]
+    available_sp500_variants = [
+        v for v in sp500_variants if v in df["identifier"].unique()
+    ]
+
+    if available_sp500_variants:
+        sp500_identifier = st.selectbox(
+            "S&P 500 instrument", available_sp500_variants
+        )
+
+        sp500_data = df[
+            (df["identifier"] == sp500_identifier)
+            & (df["Date"] >= start_date)
+            & (df["Date"] <= end_date)
+        ].copy()
+
+        if not sp500_data.empty:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=sp500_data["Date"],
+                    y=sp500_data["Close"],
+                    name="Price",
+                    line=dict(color="black"),
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=sp500_data["Date"],
+                    y=sp500_data["sma_21d"],
+                    name="SMA21",
+                    line=dict(color="orange", dash="dot"),
+                )
+            )
+            fig.update_layout(yaxis_title="Price")
+            st.plotly_chart(fig)
+        else:
+            st.info("No data available for the selected instrument and time horizon.")
+    else:
+        st.info("No S&P 500 data available.")
